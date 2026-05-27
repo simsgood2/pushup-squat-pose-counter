@@ -28,7 +28,7 @@
   - `web/src/main.ts`에서 씬 부트스트랩 + renderer 루프.
   - 수락: dev 서버 띄우면 회색 바닥 + 그리드가 보임 (Playwright 스크린샷으로 검증).
 
-- [ ] **T1.2 — MediaPipe 모델 자산 배치**
+- [x] **T1.2 — MediaPipe 모델 자산 배치**
   - 레포 루트 `pose_landmarker_lite.task`를 `web/public/models/`로 복사.
   - 수락: 빌드 후 `web/dist/models/pose_landmarker_lite.task` 존재.
 
