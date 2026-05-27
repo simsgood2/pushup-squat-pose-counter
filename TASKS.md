@@ -32,7 +32,7 @@
   - 레포 루트 `pose_landmarker_lite.task`를 `web/public/models/`로 복사.
   - 수락: 빌드 후 `web/dist/models/pose_landmarker_lite.task` 존재.
 
-- [ ] **T1.3 — MediaPipe Pose를 WebWorker에서 실행**
+- [x] **T1.3 — MediaPipe Pose를 WebWorker에서 실행**
   - `web/src/mocap/poseWorker.ts`: WebWorker. `@mediapipe/tasks-vision`의 `PoseLandmarker`를 모델 파일 로딩 → 입력 비디오 프레임 받아 33개 landmark 출력.
   - `web/src/mocap/poseStream.ts`: 메인 스레드 측. `getUserMedia`로 카메라 열고, 매 프레임을 worker에 postMessage, 결과를 RxJS-less한 callback으로 emit.
   - Vitest: poseStream API의 subscribe/unsubscribe 동작 단위 테스트 (worker는 mock).
