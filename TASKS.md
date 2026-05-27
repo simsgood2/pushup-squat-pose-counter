@@ -15,7 +15,7 @@
   - npm scripts: `dev`, `build`, `test`, `test:e2e`.
   - 수락: `cd web && npm install` 그린 + `npm run test` 빈 테스트 통과.
 
-- [ ] **T0.3 — Playwright config + 첫 sanity 스펙**
+- [x] **T0.3 — Playwright config + 첫 sanity 스펙**
   - `web/playwright.config.ts` 작성. 베이스 URL `http://localhost:5173`.
   - chromium만 사용, `--use-fake-ui-for-media-stream` 및 `--use-fake-device-for-media-stream` 플래그 포함.
   - `web/tests/sanity.spec.ts`: 페이지 로드 + `<canvas>` 존재 확인.
