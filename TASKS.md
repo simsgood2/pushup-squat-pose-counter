@@ -23,7 +23,7 @@
 
 ## M1 — 모캡 → 캐릭터 동기화
 
-- [ ] **T1.1 — Three.js 기본 씬**
+- [x] **T1.1 — Three.js 기본 씬**
   - `web/src/scene.ts` 작성: PerspectiveCamera, AmbientLight + DirectionalLight, GridHelper, 회색 ground plane.
   - `web/src/main.ts`에서 씬 부트스트랩 + renderer 루프.
   - 수락: dev 서버 띄우면 회색 바닥 + 그리드가 보임 (Playwright 스크린샷으로 검증).
