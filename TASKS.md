@@ -9,7 +9,7 @@
   - `web/package.json`, `web/tsconfig.json`, `web/index.html`, `web/src/main.ts` 존재.
   - 수락: `cd web && npm install && npm run build` 그린.
 
-- [ ] **T0.2 — Three.js + MediaPipe + 테스트 의존성 추가**
+- [x] **T0.2 — Three.js + MediaPipe + 테스트 의존성 추가**
   - 추가: `three`, `@types/three`, `@mediapipe/tasks-vision`, `kalidokit`, `zustand`.
   - dev 추가: `vitest`, `@playwright/test`, `@vitest/ui`.
   - npm scripts: `dev`, `build`, `test`, `test:e2e`.
