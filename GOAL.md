@@ -47,7 +47,7 @@ M4 이후는 손대지 마. M3까지 닿으면 그날 밤은 성공.
 5. 모두 그린이면:
    - `TASKS.md`의 해당 task 체크박스 갱신
    - `git add -A && git commit -m "<task id>: <짧은 설명>"` (Co-Authored-By 트레일러 절대 추가하지 마)
-   - `git push`
+   - **`git push` 절대 하지 마.** 푸시는 사용자가 아침에 직접 한다. 로컬 commit만.
 6. 실패면 fallback 규칙 적용.
 7. 종료 (exit 0). 다음 iteration이 알아서 또 들어옴.
 

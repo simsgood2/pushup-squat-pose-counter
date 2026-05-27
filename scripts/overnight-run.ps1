@@ -32,9 +32,9 @@ You are running autonomously in an unattended overnight loop. NO HUMAN is watchi
 2. Read TASKS.md. Pick the FIRST unchecked, non-skipped task.
 3. Implement it according to its acceptance criteria.
 4. Run the relevant tests (cd web && npm run test, and npm run test:e2e if applicable).
-5. If green: update TASKS.md checkbox in the same commit, commit (NO Co-Authored-By trailer), then `git push`.
-6. If red after 1 retry: append a short paragraph to BLOCKED.md describing the failure and mark the task SKIPPED in TASKS.md, commit + push, exit.
-7. If all priority tasks done/skipped: create DONE.flag at repo root, commit + push, exit.
+5. If green: update TASKS.md checkbox in the same commit, commit (NO Co-Authored-By trailer). DO NOT push — local commits only.
+6. If red after 1 retry: append a short paragraph to BLOCKED.md describing the failure and mark the task SKIPPED in TASKS.md, commit (no push), exit.
+7. If all priority tasks done/skipped: create DONE.flag at repo root, commit (no push), exit.
 8. NEVER ask the user a question. Apply fallbacks from GOAL.md.
 9. Process ONE task per invocation, then exit. The wrapper will invoke you again.
 
