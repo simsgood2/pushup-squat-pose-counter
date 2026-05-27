@@ -1,10 +1,33 @@
+from dataclasses import dataclass
+
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 
-TARGET_LANDMARKS = {11, 12, 23, 24, 25, 26, 27, 28}
+TARGET_LANDMARKS = {
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+}
+
+
+@dataclass(frozen=True)
+class PosePoint:
+    x: float
+    y: float
+    z: float
+    visibility: float = 1.0
 
 
 class PoseEngine:
@@ -26,9 +49,7 @@ class PoseEngine:
         self._pose_landmarker = vision.PoseLandmarker.create_from_options(options)
 
     def detect_landmarks(self, frame_bgr):
-        """
-        Returns detected landmarks dict {index: (x, y, z)} and selected pixel points.
-        """
+        """Return selected normalized landmarks and their pixel positions."""
         image_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
         result = self._pose_landmarker.detect(mp_image)
@@ -48,7 +69,12 @@ class PoseEngine:
             if idx not in TARGET_LANDMARKS:
                 continue
 
-            selected[idx] = (landmark.x, landmark.y, landmark.z)
+            selected[idx] = PosePoint(
+                x=landmark.x,
+                y=landmark.y,
+                z=landmark.z,
+                visibility=getattr(landmark, "visibility", 1.0),
+            )
             selected_points[idx] = (
                 int(landmark.x * w),
                 int(landmark.y * h),
