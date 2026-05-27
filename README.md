@@ -14,7 +14,7 @@ pip install -r requirements.txt
 ```
 2. 앱 실행
 ```bash
-python app.py
+python main.py
 ```
 
 ## 사용 방법
@@ -30,7 +30,7 @@ python app.py
 - 배경은 단순하고 조명은 균일할수록 안정적
 
 ## 구조
-- `app.py`: 실행 엔트리, UI/카메라 루프
+- `main.py`: 실행 엔트리, UI/카메라 루프
 - `pose_engine.py`: MediaPipe Pose 추론 래퍼
 - `counter.py`: 푸시업/스쿼트 상태 머신 및 카운팅 로직
 - `utils.py`: 각도 계산, 유틸 함수
