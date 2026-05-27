@@ -72,8 +72,6 @@ started_at,ended_at,duration_seconds,pushups,squats
 ├── counter.py               # 푸시업/스쿼트 자동 추론 및 카운팅
 ├── utils.py                 # 각도 계산 등 유틸 함수
 ├── session_logger.py        # 세션 CSV 저장
-├── test_counter.py          # 카운터 단위 테스트
-├── test.py                  # 카메라/포즈 감지 테스트용 실행 파일
 ├── pose_landmarker_lite.task
 ├── requirements.txt
 ├── records/                 # 실행 후 생성되는 CSV 저장 폴더
