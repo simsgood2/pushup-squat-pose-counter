@@ -4,7 +4,7 @@
 
 ## M0 — 부트스트랩
 
-- [ ] **T0.1 — Vite + TS 프로젝트 init**
+- [x] **T0.1 — Vite + TS 프로젝트 init**
   - `web/` 디렉토리에 Vite + TypeScript 템플릿 스캐폴드.
   - `web/package.json`, `web/tsconfig.json`, `web/index.html`, `web/src/main.ts` 존재.
   - 수락: `cd web && npm install && npm run build` 그린.
