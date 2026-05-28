@@ -146,6 +146,10 @@ describe('retargetBones', () => {
     const group = new THREE.Group();
     const bone = new THREE.Bone();
     bone.name = 'upperarm_l';
+    const child = new THREE.Bone();
+    child.name = 'lowerarm_l';
+    child.position.set(-1, 0, 0);
+    bone.add(child);
     group.add(bone);
 
     const lms = make33Landmarks({
@@ -163,6 +167,10 @@ describe('retargetBones', () => {
     const group = new THREE.Group();
     const bone = new THREE.Bone();
     bone.name = 'upperarm_r';
+    const child = new THREE.Bone();
+    child.name = 'lowerarm_r';
+    child.position.set(1, 0, 0);
+    bone.add(child);
     group.add(bone);
 
     const lms = make33Landmarks({
@@ -180,6 +188,10 @@ describe('retargetBones', () => {
     const group = new THREE.Group();
     const bone = new THREE.Bone();
     bone.name = 'upperarm_l';
+    const child = new THREE.Bone();
+    child.name = 'lowerarm_l';
+    child.position.set(-1, 0, 0);
+    bone.add(child);
     group.add(bone);
 
     const lms: Landmark3D[] = [{ x: 0, y: 0, z: 0, visibility: 1 }];
@@ -201,8 +213,16 @@ describe('retargetBones', () => {
     const group = new THREE.Group();
     const boneL = new THREE.Bone();
     boneL.name = 'upperarm_l';
+    const childL = new THREE.Bone();
+    childL.name = 'lowerarm_l';
+    childL.position.set(-1, 0, 0);
+    boneL.add(childL);
     const boneR = new THREE.Bone();
     boneR.name = 'upperarm_r';
+    const childR = new THREE.Bone();
+    childR.name = 'lowerarm_r';
+    childR.position.set(1, 0, 0);
+    boneR.add(childR);
     group.add(boneL);
     group.add(boneR);
 
@@ -219,6 +239,34 @@ describe('retargetBones', () => {
     expect(rotatedL.y).toBeGreaterThan(0.95);
     expect(rotatedR.y).toBeGreaterThan(0.95);
   });
+
+  it('converts target world rotation into parent local space', () => {
+    const group = new THREE.Group();
+    const parent = new THREE.Bone();
+    parent.name = 'clavicle_l';
+    parent.rotation.z = Math.PI / 4;
+    const bone = new THREE.Bone();
+    bone.name = 'upperarm_l';
+    const child = new THREE.Bone();
+    child.name = 'lowerarm_l';
+    child.position.set(-1, 0, 0);
+    bone.add(child);
+    parent.add(bone);
+    group.add(parent);
+
+    const lms = make33Landmarks({
+      11: { x: -0.3, y: 0.0, z: 0 },
+      13: { x: -0.3, y: -0.3, z: 0 },
+    });
+    retargetBones(group, lms);
+    group.updateWorldMatrix(true, true);
+
+    const shoulder = bone.getWorldPosition(new THREE.Vector3());
+    const elbow = child.getWorldPosition(new THREE.Vector3());
+    const worldDir = elbow.sub(shoulder).normalize();
+    expect(worldDir.y).toBeGreaterThan(0.95);
+    expect(Math.abs(worldDir.x)).toBeLessThan(0.2);
+  });
 });
 
 describe('BONE_MAP', () => {
@@ -228,10 +276,10 @@ describe('BONE_MAP', () => {
     expect(names).toContain('upperarm_r');
     expect(names).toContain('lowerarm_l');
     expect(names).toContain('lowerarm_r');
-    expect(names).toContain('thigh_l');
-    expect(names).toContain('thigh_r');
-    expect(names).toContain('calf_l');
-    expect(names).toContain('calf_r');
+    expect(names).not.toContain('thigh_l');
+    expect(names).not.toContain('thigh_r');
+    expect(names).not.toContain('calf_l');
+    expect(names).not.toContain('calf_r');
   });
 
   it('all restDir vectors are unit length', () => {

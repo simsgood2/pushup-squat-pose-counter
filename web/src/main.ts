@@ -1,7 +1,11 @@
+import * as THREE from 'three';
 import { initScene } from './scene';
 import { PoseStream } from './mocap/poseStream';
 import { StickFigure } from './character/stickFigure';
-import type { LandmarkResult } from './mocap/poseStream';
+import { loadGLTFIntoScene } from './character/gltfLoader';
+import { retargetBones } from './character/retargetBones';
+import mannyGlbUrl from './assets/characters/manny.glb?url';
+import type { LandmarkResult, Landmark3D } from './mocap/poseStream';
 import { ExerciseHud } from './ui/ExerciseHud';
 import { PushupClassifier } from './exercise/classifiers/pushup';
 import { SquatClassifier } from './exercise/classifiers/squat';
@@ -21,6 +25,14 @@ const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const { scene, camera, renderer } = initScene(canvas);
 
 const stickFigure = new StickFigure(scene);
+let characterGroup: THREE.Group | null = null;
+loadGLTFIntoScene(mannyGlbUrl, scene, {
+  targetMaxDimension: 1.7,
+}).then(group => {
+  characterGroup = group;
+  exposeCharacterDebug(group);
+}).catch(e => console.error("Failed to load manny:", e));
+
 const poseStream = new PoseStream();
 const hud = new ExerciseHud();
 
@@ -40,6 +52,11 @@ const rewardTracker = new RewardTracker();
 
 function processLandmarks(result: LandmarkResult): void {
   stickFigure.update(result);
+  
+  if (characterGroup && result.worldLandmarks?.[0]) {
+    retargetBones(characterGroup, result.worldLandmarks[0] as Landmark3D[]);
+  }
+
   const lm = (result.worldLandmarks?.[0] ?? []) as (Point3D | null)[];
   for (const { type, clf } of classifiers) {
     const state = clf.update(lm);
@@ -73,3 +90,29 @@ Object.defineProperty(window, '__gridTowerCount', {
   get: () => grid.towerCount,
   configurable: true,
 });
+
+function exposeCharacterDebug(group: THREE.Group): void {
+  const bounds = new THREE.Box3().setFromObject(group);
+  const size = bounds.getSize(new THREE.Vector3());
+  const boneNames: string[] = [];
+  const materialNames = new Set<string>();
+
+  group.traverse(object => {
+    if (object instanceof THREE.Bone) boneNames.push(object.name);
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      materialNames.add(material.name || material.type);
+    }
+  });
+
+  win['__characterReady'] = true;
+  win['__characterBoneNames'] = boneNames;
+  win['__characterBounds'] = {
+    min: bounds.min.toArray(),
+    max: bounds.max.toArray(),
+    size: size.toArray(),
+  };
+  win['__characterMaterialNames'] = Array.from(materialNames);
+}
