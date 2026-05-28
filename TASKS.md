@@ -24,7 +24,7 @@
 ## M1 — 모캡 → 캐릭터 동기화
 
 - [x] **T1.1 — Three.js 기본 씬**
-  - `web/src/scene.ts` 작성: PerspectiveCamera, AmbientLight + DirectionalLight, GridHelper, 회색 ground plane.
+  - `web/src/scene.ts` 작성: PerspectiveCamera `(0, 0.5, 3)`, AmbientLight + DirectionalLight, GridHelper, 회색 ground plane, OrbitControls (마우스 드래그로 시점 회전).
   - `web/src/main.ts`에서 씬 부트스트랩 + renderer 루프.
   - 수락: dev 서버 띄우면 회색 바닥 + 그리드가 보임 (Playwright 스크린샷으로 검증).
 
@@ -32,11 +32,12 @@
   - 레포 루트 `pose_landmarker_lite.task`를 `web/public/models/`로 복사.
   - 수락: 빌드 후 `web/dist/models/pose_landmarker_lite.task` 존재.
 
-- [x] **T1.3 — MediaPipe Pose를 WebWorker에서 실행**
-  - `web/src/mocap/poseWorker.ts`: WebWorker. `@mediapipe/tasks-vision`의 `PoseLandmarker`를 모델 파일 로딩 → 입력 비디오 프레임 받아 33개 landmark 출력.
-  - `web/src/mocap/poseStream.ts`: 메인 스레드 측. `getUserMedia`로 카메라 열고, 매 프레임을 worker에 postMessage, 결과를 RxJS-less한 callback으로 emit.
-  - Vitest: poseStream API의 subscribe/unsubscribe 동작 단위 테스트 (worker는 mock).
-  - 수락: Vitest 통과 + dev에서 콘솔에 landmark 좌표 흐름 확인.
+- [x] **T1.3 — MediaPipe Pose 실행 (메인 스레드)**
+  - `web/src/mocap/poseStream.ts`: `getUserMedia`로 카메라 열고 `<video>`를 DOM에 부착 (우하단 160px 미리보기), `@mediapipe/tasks-vision`의 `PoseLandmarker`를 메인 스레드에서 호출. 매 프레임 33개 landmark를 callback으로 emit.
+  - `web/vite.config.ts`: `@mediapipe/tasks-vision`를 `optimizeDeps.exclude`에 등록 — Vite의 esbuild pre-bundle이 WASM 글루의 `Module` 팩토리를 파괴.
+  - Vitest: poseStream API의 subscribe/unsubscribe 동작 단위 테스트.
+  - 수락: Vitest 통과 + dev에서 캐릭터가 사용자 동작을 따라감.
+  - 참고: 처음엔 WebWorker(`poseWorker.ts`)에서 돌리려 했으나 module worker에서 MediaPipe WASM 글루가 "ModuleFactory not set"로 실패. classic worker 우회를 시도하기보다 메인 스레드로 옮김 — 33 sphere 렌더링엔 성능 충분. `poseWorker.ts`는 나중 worker 호환 패턴 발견 시 재활용 가능하게 보존.
 
 - [x] **T1.4 — 스틱피규어 렌더러 (manny.fbx 부재시 기본)**
   - `web/src/character/stickFigure.ts`: 33개 small sphere + 주요 본 연결 cylinder. poseStream 좌표를 매 프레임 반영.
