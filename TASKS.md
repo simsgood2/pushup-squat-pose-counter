@@ -65,7 +65,7 @@
   - `web/src/exercise/classifiers/pushup.ts`: 양 팔꿈치 각도, 몸통 수평 조건.
   - Vitest: pushup motion sequence에 카운트 발생 검증.
 
-- [ ] **T2.4 — 스쿼트 분류기**
+- [x] **T2.4 — 스쿼트 분류기**
   - `web/src/exercise/classifiers/squat.ts`: 양 무릎 각도, 몸통 수직 조건.
   - Vitest 동일 패턴.
 
