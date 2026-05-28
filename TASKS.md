@@ -56,7 +56,7 @@
   - `web/src/exercise/angle.ts`: 3개 점으로 각도 (Python `utils.py` 포팅).
   - Vitest: 알려진 3D 좌표 입력에 대한 각도 결과 검증.
 
-- [ ] **T2.2 — RepetitionCounter 베이스 클래스**
+- [x] **T2.2 — RepetitionCounter 베이스 클래스**
   - `web/src/exercise/repCounter.ts`: down_angle / up_angle / hysteresis state machine. Python `counter.py` 포팅.
   - Vitest: 인공 각도 시퀀스 입력에 정확한 카운트 수 검증.
 
