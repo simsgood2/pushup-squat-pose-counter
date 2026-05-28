@@ -1,3 +1,5 @@
+import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+
 export type Landmark3D = { x: number; y: number; z: number; visibility?: number };
 
 export type LandmarkResult = {
@@ -7,13 +9,16 @@ export type LandmarkResult = {
 
 export type LandmarkCallback = (result: LandmarkResult) => void;
 
+// Note: MediaPipe Tasks Vision은 module worker에서 작동하지 않는다
+// (WASM 글루를 <script> 태그 주입 또는 importScripts로 로드하는데
+// module worker에선 둘 다 불가). 그래서 main thread에서 직접 실행한다.
 export class PoseStream {
   private callbacks = new Set<LandmarkCallback>();
-  private worker: Worker | null = null;
   private mediaStream: MediaStream | null = null;
   private video: HTMLVideoElement | null = null;
   private rafId: number | null = null;
   private active = false;
+  private poseLandmarker: PoseLandmarker | null = null;
 
   subscribe(cb: LandmarkCallback): () => void {
     this.callbacks.add(cb);
@@ -23,26 +28,31 @@ export class PoseStream {
   }
 
   async start(modelUrl: string): Promise<void> {
-    this.mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    this.mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false,
+    });
 
     this.video = document.createElement('video');
     this.video.srcObject = this.mediaStream;
     this.video.playsInline = true;
+    this.video.muted = true;
+    this.video.style.cssText =
+      'position:fixed;bottom:8px;right:8px;width:160px;border:1px solid #444;z-index:9999;';
+    document.body.appendChild(this.video);
     await this.video.play();
 
-    this.worker = new Worker(new URL('./poseWorker.ts', import.meta.url), { type: 'module' });
+    const vision = await FilesetResolver.forVisionTasks(
+      `${window.location.origin}/wasm`
+    );
+    this.poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: modelUrl, delegate: 'GPU' },
+      runningMode: 'VIDEO',
+      numPoses: 1,
+    });
 
-    this.worker.onmessage = (e: MessageEvent) => {
-      const data = e.data as { type: string };
-      if (data.type === 'ready') {
-        this.active = true;
-        this.scheduleFrame();
-      } else if (data.type === 'landmarks') {
-        this.dispatch(e.data as LandmarkResult & { type: string });
-      }
-    };
-
-    this.worker.postMessage({ type: 'init', modelUrl });
+    this.active = true;
+    this.scheduleFrame();
   }
 
   stop(): void {
@@ -51,8 +61,8 @@ export class PoseStream {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
     }
-    this.worker?.terminate();
-    this.worker = null;
+    this.poseLandmarker?.close();
+    this.poseLandmarker = null;
     this.mediaStream?.getTracks().forEach(t => t.stop());
     this.mediaStream = null;
     if (this.video) {
@@ -61,7 +71,10 @@ export class PoseStream {
     }
   }
 
-  private dispatch(data: { landmarks: Landmark3D[][]; worldLandmarks: Landmark3D[][] }): void {
+  private dispatch(data: {
+    landmarks: Landmark3D[][];
+    worldLandmarks: Landmark3D[][];
+  }): void {
     const result: LandmarkResult = {
       landmarks: data.landmarks,
       worldLandmarks: data.worldLandmarks,
@@ -72,22 +85,18 @@ export class PoseStream {
   private scheduleFrame(): void {
     if (!this.active) return;
     this.rafId = requestAnimationFrame(() => {
-      if (!this.active || !this.video || !this.worker) return;
+      if (!this.active || !this.video || !this.poseLandmarker) return;
       if (this.video.readyState >= 2) {
-        createImageBitmap(this.video)
-          .then(bitmap => {
-            this.worker!.postMessage(
-              { type: 'frame', bitmap, timestamp: performance.now() },
-              [bitmap]
-            );
-            this.scheduleFrame();
-          })
-          .catch(() => {
-            this.scheduleFrame();
-          });
-      } else {
-        this.scheduleFrame();
+        const result = this.poseLandmarker.detectForVideo(
+          this.video,
+          performance.now()
+        );
+        this.dispatch({
+          landmarks: result.landmarks as Landmark3D[][],
+          worldLandmarks: result.worldLandmarks as Landmark3D[][],
+        });
       }
+      this.scheduleFrame();
     });
   }
 }

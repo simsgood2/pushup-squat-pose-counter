@@ -12,7 +12,9 @@ ctx.onmessage = async (e: MessageEvent) => {
   const msg = e.data as WorkerInMessage;
 
   if (msg.type === 'init') {
-    const vision = await FilesetResolver.forVisionTasks('/wasm');
+    const vision = await FilesetResolver.forVisionTasks(
+      `${self.location.origin}/wasm`
+    );
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: { modelAssetPath: msg.modelUrl, delegate: 'GPU' },
       runningMode: 'VIDEO',

@@ -10,6 +10,8 @@ const stickFigure = new StickFigure(scene);
 const poseStream = new PoseStream();
 
 poseStream.subscribe(result => stickFigure.update(result));
+
+(window as unknown as Record<string, unknown>)['__stickFigure'] = stickFigure;
 poseStream.start('/models/pose_landmarker_lite.task').catch(() => {
   // Webcam not available (e.g. test env) — rely on __updatePose injection
 });

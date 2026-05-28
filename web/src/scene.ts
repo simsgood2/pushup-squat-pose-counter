@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 export type SceneContext = {
   scene: THREE.Scene;
@@ -16,8 +17,12 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
   scene.background = new THREE.Color(0x222222);
 
   const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 5, 10);
+  camera.position.set(0, 0.5, 3);
   camera.lookAt(0, 0, 0);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0, 0);
+  controls.update();
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   scene.add(ambientLight);
@@ -39,6 +44,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
 
   function animate() {
     animFrameId = requestAnimationFrame(animate);
+    controls.update();
     renderer.render(scene, camera);
   }
 
