@@ -13,6 +13,11 @@ test('T3.1: clicking canvas places a tower mesh on the grid', async ({ page }) =
   );
   expect(initialCount).toBe(0);
 
+  // Grid input is only enabled in Defense phase
+  await page.evaluate(
+    () => (window as unknown as Record<string, unknown>)['__forcePhase']?.('Defense')
+  );
+
   const clickPoint = await page.evaluate(() => {
     const win = window as unknown as {
       __gridCellScreenPoint: (row: number, col: number) => { x: number; y: number } | null;

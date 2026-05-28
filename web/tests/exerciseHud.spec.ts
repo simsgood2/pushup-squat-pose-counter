@@ -41,6 +41,11 @@ test('T2.7: HUD renders and shows non-zero gold after jumping jack rep', async (
   const hud = page.locator('[data-testid="exercise-hud"]');
   await expect(hud).toBeVisible();
 
+  // Exercise classifiers are only active in Exercise phase
+  await page.evaluate(
+    () => (window as unknown as Record<string, unknown>)['__forcePhase']?.('Exercise')
+  );
+
   const goldEl = page.locator('[data-testid="gold"]');
   await expect(goldEl).toHaveText('0');
 

@@ -83,6 +83,9 @@ export class DefenseGrid {
   private animFrameId = 0;
   private lastUpdate = performance.now();
   private accumulatedTime = 0;
+  private _inputEnabled = false;
+  private _waveCompleteFired = false;
+  onWaveComplete: (() => void) | null = null;
 
   constructor(
     scene: THREE.Scene,
@@ -104,6 +107,10 @@ export class DefenseGrid {
     this._clickHandler = this._handleClick.bind(this);
     renderer.domElement.addEventListener('click', this._clickHandler);
     this._tick();
+  }
+
+  setInputEnabled(enabled: boolean): void {
+    this._inputEnabled = enabled;
   }
 
   get towerCount(): number {
@@ -280,9 +287,14 @@ export class DefenseGrid {
     for (const tower of this.towerLogics.values()) {
       tower.update(dt, this.wave.enemies);
     }
+    if (this.wave.complete && !this._waveCompleteFired) {
+      this._waveCompleteFired = true;
+      this.onWaveComplete?.();
+    }
   }
 
   private _handleClick(event: MouseEvent): void {
+    if (!this._inputEnabled) return;
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     const ndcY = -((event.clientY - rect.top) / rect.height) * 2 + 1;

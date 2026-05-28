@@ -7,6 +7,7 @@ import { retargetBones } from './character/retargetBones';
 import mannyGlbUrl from './assets/characters/manny.glb?url';
 import type { LandmarkResult, Landmark3D } from './mocap/poseStream';
 import { ExerciseHud } from './ui/ExerciseHud';
+import { PhaseHud } from './ui/PhaseHud';
 import { PushupClassifier } from './exercise/classifiers/pushup';
 import { SquatClassifier } from './exercise/classifiers/squat';
 import { JumpClassifier } from './exercise/classifiers/jump';
@@ -16,6 +17,7 @@ import { RewardTracker, goldStore, type ExerciseType } from './exercise/rewards'
 import type { Point3D } from './exercise/angle';
 import type { ExerciseState } from './exercise/repCounter';
 import { DefenseGrid } from './defense/grid';
+import { phaseStore, type Phase } from './game/phaseMachine';
 
 interface AnyClassifier {
   update(lm: (Point3D | null)[]): ExerciseState;
@@ -35,6 +37,7 @@ loadGLTFIntoScene(mannyGlbUrl, scene, {
 
 const poseStream = new PoseStream();
 const hud = new ExerciseHud();
+new PhaseHud();
 
 const classifiers: { type: ExerciseType; clf: AnyClassifier }[] = [
   { type: 'pushup',      clf: new PushupClassifier() },
@@ -49,13 +52,16 @@ const prevCounts: Record<ExerciseType, number> = {
 };
 
 const rewardTracker = new RewardTracker();
+let exerciseEnabled = false;
 
 function processLandmarks(result: LandmarkResult): void {
   stickFigure.update(result);
-  
+
   if (characterGroup && result.worldLandmarks?.[0]) {
     retargetBones(characterGroup, result.worldLandmarks[0] as Landmark3D[]);
   }
+
+  if (!exerciseEnabled) return;
 
   const lm = (result.worldLandmarks?.[0] ?? []) as (Point3D | null)[];
   for (const { type, clf } of classifiers) {
@@ -78,6 +84,30 @@ poseStream.start('/models/pose_landmarker_lite.task').catch(() => {
 
 const grid = new DefenseGrid(scene, camera, renderer);
 
+// Phase wiring
+exerciseEnabled = phaseStore.getState().phase === 'Exercise';
+grid.setInputEnabled(phaseStore.getState().phase === 'Defense');
+
+phaseStore.subscribe((state) => {
+  exerciseEnabled = state.phase === 'Exercise';
+  grid.setInputEnabled(state.phase === 'Defense');
+});
+
+grid.onWaveComplete = () => {
+  phaseStore.getState().waveCleared();
+};
+
+// Exercise timer tick
+let lastTimerTime = performance.now();
+function timerLoop(): void {
+  const now = performance.now();
+  const dt = Math.min((now - lastTimerTime) / 1000, 0.5);
+  lastTimerTime = now;
+  phaseStore.getState().tickTimer(dt);
+  requestAnimationFrame(timerLoop);
+}
+timerLoop();
+
 const win = window as unknown as Record<string, unknown>;
 win['__stickFigureReady'] = true;
 win['__hudReady'] = true;
@@ -86,6 +116,9 @@ win['__updatePose'] = (result: LandmarkResult) => {
   win['__visibleSphereCount'] = stickFigure.visibleCount;
 };
 win['__gridReady'] = true;
+win['__phase'] = () => phaseStore.getState().phase;
+win['__forcePhase'] = (p: Phase) => phaseStore.getState().setPhase(p);
+win['__round'] = () => phaseStore.getState().round;
 Object.defineProperty(window, '__gridTowerCount', {
   get: () => grid.towerCount,
   configurable: true,
