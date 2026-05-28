@@ -2,52 +2,32 @@ import { test, expect } from '@playwright/test';
 
 test('T4.1: initial phase is Menu', async ({ page }) => {
   await page.goto('/');
-  await page.waitForFunction(
-    () => typeof (window as unknown as Record<string, unknown>)['__phase'] === 'function',
-    { timeout: 10000 }
-  );
-  const phase = await page.evaluate(
-    () => (window as unknown as Record<string, unknown>)['__phase']?.()
-  );
-  expect(phase).toBe('Menu');
+  const menuOverlay = page.locator('[data-testid="menu-overlay"]');
+  await expect(menuOverlay).toBeVisible();
+
+  const phaseLabel = page.locator('[data-testid="phase-label"]');
+  await expect(phaseLabel).toHaveText('Menu');
 });
 
 test('T4.1: start button click transitions to Exercise', async ({ page }) => {
   await page.goto('/');
-  await page.waitForFunction(
-    () => typeof (window as unknown as Record<string, unknown>)['__phase'] === 'function',
-    { timeout: 10000 }
-  );
-  await page.click('[data-testid="start-button"]');
-  const phase = await page.evaluate(
-    () => (window as unknown as Record<string, unknown>)['__phase']?.()
-  );
-  expect(phase).toBe('Exercise');
+  const startBtn = page.locator('[data-testid="start-button"]');
+  await expect(startBtn).toBeVisible();
+
+  await startBtn.click();
+
+  const menuOverlay = page.locator('[data-testid="menu-overlay"]');
+  await expect(menuOverlay).toBeHidden();
+
+  const phaseLabel = page.locator('[data-testid="phase-label"]');
+  await expect(phaseLabel).toHaveText('Exercise');
 });
 
-test('T4.1: __forcePhase forces Defense state', async ({ page }) => {
+test('T4.1: round starts at 1', async ({ page }) => {
   await page.goto('/');
-  await page.waitForFunction(
-    () => typeof (window as unknown as Record<string, unknown>)['__forcePhase'] === 'function',
-    { timeout: 10000 }
-  );
-  await page.evaluate(
-    () => (window as unknown as Record<string, unknown>)['__forcePhase']?.('Defense')
-  );
-  const phase = await page.evaluate(
-    () => (window as unknown as Record<string, unknown>)['__phase']?.()
-  );
-  expect(phase).toBe('Defense');
-});
+  const startBtn = page.locator('[data-testid="start-button"]');
+  await startBtn.click();
 
-test('T4.1: __round returns current round', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(
-    () => typeof (window as unknown as Record<string, unknown>)['__round'] === 'function',
-    { timeout: 10000 }
-  );
-  const round = await page.evaluate(
-    () => (window as unknown as Record<string, unknown>)['__round']?.()
-  );
-  expect(round).toBe(1);
+  const roundLabel = page.locator('[data-testid="round-label"]');
+  await expect(roundLabel).toHaveText('1');
 });

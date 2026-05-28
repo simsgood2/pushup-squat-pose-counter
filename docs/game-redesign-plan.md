@@ -26,7 +26,7 @@
 |---|---|---|
 | MediaPipe 통합 | 브라우저 카메라 권한과 바로 연결 | 네이티브 카메라/GUI 차이 처리 필요 |
 | 3D 렌더 | Three.js 생태계, glTF/GLB 로드 쉬움 | Panda3D 등 별도 파이프라인 필요 |
-| 테스트 | Vitest + Playwright로 로직/브라우저 검증 가능 | GUI 검증 자동화가 상대적으로 번거로움 |
+| 테스트 | Playwright로 브라우저/시각 검증 | GUI 검증 자동화가 상대적으로 번거로움 |
 | 배포 | `vite build` 후 정적 호스팅 가능 | exe/OS별 권한/카메라 차이 고려 필요 |
 | 에이전트 작업성 | 코드, 브라우저, 테스트가 한 프로젝트 안에서 닫힘 | 런타임 경계가 많아짐 |
 
@@ -46,7 +46,7 @@
 | 리타게팅 | 커스텀 본 매핑 + quaternion 변환, Kalidokit은 의존성으로 유지 |
 | 상태 관리 | 운동 골드: `goldStore`, 페이즈/라운드: `phaseStore` (Zustand vanilla) |
 | UI | HTML overlay (`ExerciseHud`, `PhaseHud`) |
-| 테스트 | Vitest + Playwright |
+| 테스트 | Playwright |
 
 ## 현재 구현 상태
 
@@ -93,8 +93,7 @@
 - `PhaseHud.ts`: 메뉴 오버레이("게임 시작"), 페이즈/라운드/타이머(60s) 표시, "디펜스 시작" / "다음 라운드" 버튼
 - `main.ts` 페이즈 연동: Exercise 페이즈에서만 운동 분류기 활성, Defense 페이즈에서만 그리드 클릭 활성
 - `grid.ts`: `setInputEnabled(boolean)`, `onWaveComplete` 콜백 추가
-- 테스트 훅: `window.__phase()`, `window.__forcePhase(p)`, `window.__round()`
-- Vitest 19개 (모든 전이 단위 테스트), Playwright 4개 (페이즈 E2E)
+- Playwright 페이즈 E2E
 
 완료된 것 (T4.2 + T4.3):
 
@@ -103,8 +102,8 @@
 - `grid.ts`: `placeTowerAt`에 골드 체크 및 차감, `onEnemyReachedEnd` 콜백, `startWave()` 공개 메서드
 - `phaseMachine.ts`: `lives: number` (초기값 20, `INITIAL_LIVES`), `loseLife()` 액션 추가
 - `PhaseHud.ts`: Defense 페이즈에 "라이프: N" / "타워 비용: 30" 행 표시
-- `main.ts`: `onEnemyReachedEnd → loseLife` 연결, 테스트 훅 `__gold/__addGold/__lives/__setLives/__startDefenseWave` 추가
-- Vitest 230개 통과, Playwright 13개 통과 (신규 `gameOver.spec.ts` 3개 포함)
+- `main.ts`: `onEnemyReachedEnd → loseLife` 연결
+- Playwright (신규 `gameOver.spec.ts` 포함)
 
 현재 한계:
 
@@ -350,25 +349,20 @@ VRM은 당장 필수 경로가 아니다. 캐릭터 파이프라인은 GLB 기�
 
 ## 테스트 정책
 
-- 게임 로직은 Vitest로 빠르게 검증한다.
-- 브라우저 상호작용, 캔버스 렌더, HUD, 디펜스 시나리오는 Playwright로 검증한다.
-- 테스트 전용 window hook은 MVP 기간에는 유지한다.
-- 시각/상호작용 회귀를 막는 것이 우선이며, 내부 구조가 안정되면 hook을 정리한다.
+- 모든 테스트는 **Playwright**로 작성한다. 브라우저 상호작용, 캔버스 렌더, HUD, 디펜스 시나리오를 실제 UI 위에서 검증한다.
+- **단위 테스트 프레임워크(Vitest)는 쓰지 않는다.** 구현 에이전트가 테스트도 함께 짜는 환경에서 단위/통합 분리의 가치가 낮다.
+- **테스트 전용 `window.__xxx` 훅은 추가하지 않는다.** Playwright는 실제 UI 상호작용을 통해 검증한다. 시뮬레이션이 꼭 필요한 경우는 정식 모듈 API로 노출하고 그 자체를 테스트한다.
 
 현재 주요 검증:
 
 - 씬 로드 및 캔버스 존재
-- ground/grid 렌더
-- 스틱피규어 landmark 렌더
-- GLB 캐릭터 로드와 본 리타게팅
-- 5종 운동 분류와 골드 보상
-- HUD 골드 표시
+- ground / grid 렌더
+- GLB 캐릭터 로드
+- HUD 골드 / 페이즈 / 라이프 표시
 - 그리드 클릭 타워 배치 (골드 충분 시에만)
 - 기본 타워가 기본 웨이브 5마리를 도착 전에 처치
-- 골드 부족 시 타워 배치 거부
 - 적 끝점 도달 → 라이프 감소 → 라이프 0 → GameOver 전환
-- 페이즈 전이 (Menu → Exercise → Defense → WaveClear → Exercise)
-- `__phase` / `__forcePhase` / `__round` / `__gold` / `__addGold` / `__lives` / `__setLives` / `__startDefenseWave` 훅 동작
+- 페이즈 전이 (Menu → Exercise → Defense → WaveClear)
 
 ## 리스크와 미정 사항
 

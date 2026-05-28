@@ -6,7 +6,12 @@ test('T1.1: scene renders grey ground and grid', async ({ page }) => {
   const canvas = page.locator('canvas');
   await expect(canvas).toBeVisible();
 
-  await page.waitForFunction(() => (window as unknown as Record<string, unknown>)['__sceneReady'] === true, { timeout: 10000 });
+  // Wait for scene to render content (non-trivial canvas data)
+  await page.waitForFunction(() => {
+    const c = document.getElementById('game-canvas') as HTMLCanvasElement;
+    const dataUrl = c.toDataURL();
+    return dataUrl.length > 1000;
+  }, { timeout: 10000 });
 
   const { width, height } = await page.evaluate(() => {
     const c = document.getElementById('game-canvas') as HTMLCanvasElement;

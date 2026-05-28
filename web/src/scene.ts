@@ -71,8 +71,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  (window as unknown as Record<string, unknown>)['__sceneReady'] = true;
-
   return {
     scene,
     camera,
