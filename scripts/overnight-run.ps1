@@ -8,21 +8,53 @@
 
 $ErrorActionPreference = "Continue"
 
-$repoRoot   = Split-Path -Parent $PSScriptRoot
-$logFile    = Join-Path $repoRoot "overnight.log"
-$doneFlag   = Join-Path $repoRoot "DONE.flag"
-$maxHours   = 10
-$model      = "claude-sonnet-4-6"
-$fallback   = "claude-haiku-4-5-20251001"
+# Force UTF-8 for stdout/stderr so Korean output in logs is not mojibake.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001 > $null
 
-$startTime  = Get-Date
-$iteration  = 0
-$failStreak = 0
+$repoRoot     = Split-Path -Parent $PSScriptRoot
+$logFile      = Join-Path $repoRoot "overnight.log"
+$doneFlag     = Join-Path $repoRoot "DONE.flag"
+$maxHours     = 10
+$model        = "claude-sonnet-4-6"
+$fallback     = "claude-haiku-4-5-20251001"
+
+# Sleep on generic (non-rate-limit) failure. 15 min default.
+$genericFailSleepSec  = 900
+# Sleep when rate-limited but cannot parse reset time. 30 min default.
+$rateLimitBlindSleep  = 1800
+# Buffer added to parsed reset time to avoid hitting limit again immediately.
+$rateLimitBufferSec   = 90
+# Abort only on persistent NON-rate-limit failures.
+$maxGenericFails      = 10
+
+$startTime    = Get-Date
+$iteration    = 0
+$genericFails = 0
 
 function Write-Log {
   param([string]$msg)
   $line = "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f (Get-Date), $msg
   $line | Tee-Object -FilePath $logFile -Append
+}
+
+function Parse-RateLimitReset {
+  param([string]$text)
+  # Matches "resets 4:10am (Asia/Seoul)" / "resets 11:30pm" / "resets 4am" etc.
+  if ($text -match "resets?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)") {
+    $h = [int]$Matches[1]
+    $m = if ($Matches[2]) { [int]$Matches[2] } else { 0 }
+    $ampm = $Matches[3].ToLower()
+    if ($ampm -eq "pm" -and $h -lt 12) { $h += 12 }
+    if ($ampm -eq "am" -and $h -eq 12) { $h = 0 }
+    $now = Get-Date
+    $reset = Get-Date -Year $now.Year -Month $now.Month -Day $now.Day -Hour $h -Minute $m -Second 0
+    # If parsed time is in the past, it's tomorrow.
+    if ($reset -lt $now) { $reset = $reset.AddDays(1) }
+    return $reset
+  }
+  return $null
 }
 
 $prompt = @'
@@ -58,35 +90,48 @@ while ($true) {
     break
   }
 
-  Write-Log "--- Iteration $iteration (elapsed: $([Math]::Round($elapsed.TotalHours, 2))h, failStreak: $failStreak) ---"
+  Write-Log "--- Iteration $iteration (elapsed: $([Math]::Round($elapsed.TotalHours, 2))h, genericFails: $genericFails) ---"
 
   Set-Location $repoRoot
 
-  # Invoke Claude Code in headless mode.
-  # --print            : non-interactive, write response to stdout and exit
-  # --dangerously-skip-permissions : auto-grant all tool permissions (no human to approve)
-  # --model            : pin to Sonnet for cost/speed
   $output = & claude --print --dangerously-skip-permissions --model $model --fallback-model $fallback $prompt 2>&1
   $exitCode = $LASTEXITCODE
-
-  $output | Out-String | Tee-Object -FilePath $logFile -Append | Out-Null
+  $outputStr = $output | Out-String
+  $outputStr | Tee-Object -FilePath $logFile -Append | Out-Null
 
   if ($exitCode -eq 0) {
     Write-Log "Iteration $iteration OK."
-    $failStreak = 0
+    $genericFails = 0
     Start-Sleep -Seconds 15
-  } else {
-    $failStreak++
-    # Backoff: 1m, 2m, 4m, 8m, ... capped at 30m. Helps when rate-limited.
-    $sleepSec = [Math]::Min(1800, 60 * [Math]::Pow(2, $failStreak - 1))
-    Write-Log "Iteration $iteration FAILED (exit=$exitCode, streak=$failStreak). Sleeping ${sleepSec}s."
-    Start-Sleep -Seconds $sleepSec
+    continue
+  }
 
-    # Hard stop if 8 failures in a row — something is fundamentally broken.
-    if ($failStreak -ge 8) {
-      Write-Log "8 consecutive failures. Aborting."
-      break
+  # Failure path. Distinguish rate limit from other failures.
+  $isRateLimit = $outputStr -match "(session limit|rate.?limit|usage limit|too many requests)"
+
+  if ($isRateLimit) {
+    $reset = Parse-RateLimitReset -text $outputStr
+    if ($reset) {
+      $waitSec = [int](($reset - (Get-Date)).TotalSeconds) + $rateLimitBufferSec
+      if ($waitSec -lt 60) { $waitSec = 60 }
+      Write-Log "Rate limited. Reset parsed as $($reset.ToString('yyyy-MM-dd HH:mm:ss')). Sleeping ${waitSec}s."
+      Start-Sleep -Seconds $waitSec
+    } else {
+      Write-Log "Rate limited but reset time unparseable. Sleeping ${rateLimitBlindSleep}s."
+      Start-Sleep -Seconds $rateLimitBlindSleep
     }
+    # Do NOT count rate-limit hits toward abort streak.
+    continue
+  }
+
+  # Generic failure (npm broke, git issue, claude crashed, etc.).
+  $genericFails++
+  Write-Log "Iteration $iteration generic FAIL (exit=$exitCode, streak=$genericFails). Sleeping ${genericFailSleepSec}s."
+  Start-Sleep -Seconds $genericFailSleepSec
+
+  if ($genericFails -ge $maxGenericFails) {
+    Write-Log "$maxGenericFails consecutive non-rate-limit failures. Aborting."
+    break
   }
 }
 
