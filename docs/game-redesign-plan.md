@@ -16,6 +16,7 @@
 - 스틱피규어는 fallback 겸 디버그 렌더러로 계속 유지한다.
 - React는 아직 도입하지 않았다. HUD는 Three.js 캔버스 위 HTML overlay로 구현되어 있다.
 - 디펜스는 현재 단일 타워, 단일 적, 단일 웨이브까지 플레이 가능하다.
+- 페이즈 상태 머신(Menu / Exercise / Defense / WaveClear / GameOver)이 구현되어 있고, PhaseHud로 페이즈/라운드/타이머가 표시된다.
 
 ## 왜 JS인가
 
@@ -41,8 +42,8 @@
 | 캐릭터 포맷 | GLB (`manny.glb`) |
 | 캐릭터 로딩 | Three.js `GLTFLoader` |
 | 리타게팅 | 커스텀 본 매핑 + quaternion 변환, Kalidokit은 의존성으로 유지 |
-| 상태 관리 | 운동 골드: Zustand store, 그 외는 단순 class/module state |
-| UI | HTML overlay (`ExerciseHud`) |
+| 상태 관리 | 운동 골드: `goldStore`, 페이즈/라운드: `phaseStore` (Zustand vanilla) |
+| UI | HTML overlay (`ExerciseHud`, `PhaseHud`) |
 | 테스트 | Vitest + Playwright |
 
 ## 현재 구현 상태
@@ -80,9 +81,23 @@
 
 현재 UX 한계:
 
-- 아직 명시적인 운동 페이즈 타이머는 없다.
-- 사용자는 항상 모캡/운동 인식이 켜진 상태로 디펜스 그리드도 함께 볼 수 있다.
 - 운동으로 번 골드와 타워 구매 비용은 아직 연결되어 있지 않다.
+
+### M4 — 페이즈 상태 머신
+
+완료된 것:
+
+- `phaseMachine.ts`: Menu / Exercise / Defense / WaveClear / GameOver 상태 + Zustand `phaseStore`
+- `PhaseHud.ts`: 메뉴 오버레이("게임 시작"), 페이즈/라운드/타이머(60s) 표시, "디펜스 시작" / "다음 라운드" 버튼
+- `main.ts` 페이즈 연동: Exercise 페이즈에서만 운동 분류기 활성, Defense 페이즈에서만 그리드 클릭 활성
+- `grid.ts`: `setInputEnabled(boolean)`, `onWaveComplete` 콜백 추가
+- 테스트 훅: `window.__phase()`, `window.__forcePhase(p)`, `window.__round()`
+- Vitest 19개 (모든 전이 단위 테스트), Playwright 4개 (페이즈 E2E)
+
+현재 한계:
+
+- 라운드가 넘어가도 그리드/웨이브가 리셋되지 않는다 (T4.2 이후 처리).
+- GameOver 트리거 로직이 없다 (상태 정의만 존재).
 
 ### M3 — 디펜스 페이즈
 
@@ -110,7 +125,6 @@
 - 타워 구매 비용과 골드 소비가 없다.
 - 경로는 단순 직선이다.
 - 타워/적/웨이브 종류가 각각 1개뿐이다.
-- 디펜스 페이즈 시작/종료 UI가 없다.
 
 ## 현재 아키텍처
 
@@ -141,8 +155,11 @@ web/src/
 │   ├── towers.ts              # 타워 로직
 │   ├── enemies.ts             # 적 로직
 │   └── waves.ts               # 웨이브 스크립트
+├── game/
+│   └── phaseMachine.ts        # 페이즈 상태 머신 + phaseStore (Zustand)
 ├── ui/
-│   └── ExerciseHud.ts
+│   ├── ExerciseHud.ts
+│   └── PhaseHud.ts            # 메뉴 오버레이, 페이즈/라운드/타이머 HUD
 └── assets/
     └── characters/manny.glb
 ```
@@ -190,7 +207,7 @@ worker 재시도 조건:
 - 웨이브를 막으면 다음 라운드로 진행
 - 장기적으로는 랜덤 상점, 타워 등급, 변이 웨이브, 이벤트 카드를 붙인다.
 
-현재는 페이즈 전환 없이 두 시스템이 같은 화면에서 동시에 존재한다. 다음 큰 작업은 이 둘을 게임 루프로 묶는 것이다.
+페이즈 상태 머신이 구현되어 두 시스템은 이제 명시적인 페이즈로 분리된다. 다음 큰 작업은 골드 소비와 라이프 시스템을 연결하는 것이다.
 
 ## 목표 진행 루프
 
@@ -206,12 +223,7 @@ worker 재시도 조건:
 
 ## 다음 우선순위
 
-### 1. 페이즈 상태 머신
-
-- Menu / Exercise / Defense / WaveClear / GameOver 상태 정의
-- 운동 인식은 Exercise 상태에서 주로 골드 수급
-- Defense 상태에서는 타워 배치와 웨이브 진행
-- 테스트 훅은 유지하되 런타임 UI와 충돌하지 않게 정리
+### ~~1. 페이즈 상태 머신~~ ✅ 완료 (T4.1)
 
 ### 2. 골드와 타워 비용 연결
 
@@ -293,6 +305,8 @@ VRM은 당장 필수 경로가 아니다. 캐릭터 파이프라인은 GLB 기�
 - HUD 골드 표시
 - 그리드 클릭 타워 배치
 - 기본 타워가 기본 웨이브 5마리를 도착 전에 처치
+- 페이즈 전이 (Menu → Exercise → Defense → WaveClear → Exercise)
+- `__phase` / `__forcePhase` / `__round` 훅 동작
 
 ## 리스크와 미정 사항
 
@@ -306,7 +320,7 @@ VRM은 당장 필수 경로가 아니다. 캐릭터 파이프라인은 GLB 기�
 
 ## 당장 다음 액션
 
-1. 페이즈 상태 머신을 만든다.
+1. ~~페이즈 상태 머신을 만든다.~~ ✅
 2. 골드 소비와 타워 배치를 연결한다.
 3. 라이프/게임오버를 추가한다.
 4. 디펜스 웨이브와 타워 종류를 확장한다.
