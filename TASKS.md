@@ -77,7 +77,7 @@
   - `web/src/exercise/rewards.ts`: 동작별 기본 가치 + 콤보 배수 + 깊이 가산. Zustand store에 누적.
   - Vitest로 시나리오별 골드 결과 검증.
 
-- [ ] **T2.7 — 운동 HUD**
+- [x] **T2.7 — 운동 HUD**
   - `web/src/ui/ExerciseHud.ts`: Three.js 위 HTML overlay. 현재 동작 / 콤보 / 골드 표시.
   - Playwright: mock landmark 시퀀스 주입 후 HUD에 골드가 0이 아닌 값으로 보이는지.
 
