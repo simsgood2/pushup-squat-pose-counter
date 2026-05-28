@@ -11,13 +11,14 @@ import { JumpingJackClassifier } from './exercise/classifiers/jumpingJack';
 import { RewardTracker, goldStore, type ExerciseType } from './exercise/rewards';
 import type { Point3D } from './exercise/angle';
 import type { ExerciseState } from './exercise/repCounter';
+import { DefenseGrid } from './defense/grid';
 
 interface AnyClassifier {
   update(lm: (Point3D | null)[]): ExerciseState;
 }
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-const { scene } = initScene(canvas);
+const { scene, camera, renderer } = initScene(canvas);
 
 const stickFigure = new StickFigure(scene);
 const poseStream = new PoseStream();
@@ -58,6 +59,8 @@ poseStream.start('/models/pose_landmarker_lite.task').catch(() => {
   // Webcam not available (e.g. test env) — rely on __updatePose injection
 });
 
+const grid = new DefenseGrid(scene, camera, renderer);
+
 const win = window as unknown as Record<string, unknown>;
 win['__stickFigureReady'] = true;
 win['__hudReady'] = true;
@@ -65,3 +68,8 @@ win['__updatePose'] = (result: LandmarkResult) => {
   processLandmarks(result);
   win['__visibleSphereCount'] = stickFigure.visibleCount;
 };
+win['__gridReady'] = true;
+Object.defineProperty(window, '__gridTowerCount', {
+  get: () => grid.towerCount,
+  configurable: true,
+});
