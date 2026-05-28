@@ -69,7 +69,7 @@
   - `web/src/exercise/classifiers/squat.ts`: 양 무릎 각도, 몸통 수직 조건.
   - Vitest 동일 패턴.
 
-- [ ] **T2.5 — 점프 / 런지 / 팔벌려뛰기 분류기**
+- [x] **T2.5 — 점프 / 런지 / 팔벌려뛰기 분류기**
   - 각각 `jump.ts`, `lunge.ts`, `jumpingJack.ts`. 규칙은 [docs/game-redesign-plan.md](docs/game-redesign-plan.md) 표 참조.
   - Vitest로 각 분류기 검증.
 
