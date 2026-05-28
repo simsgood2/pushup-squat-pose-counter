@@ -12,9 +12,7 @@ ctx.onmessage = async (e: MessageEvent) => {
   const msg = e.data as WorkerInMessage;
 
   if (msg.type === 'init') {
-    const vision = await FilesetResolver.forVisionTasks(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm'
-    );
+    const vision = await FilesetResolver.forVisionTasks('/wasm');
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: { modelAssetPath: msg.modelUrl, delegate: 'GPU' },
       runningMode: 'VIDEO',
