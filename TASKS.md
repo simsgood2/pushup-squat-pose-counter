@@ -60,7 +60,7 @@
   - `web/src/exercise/repCounter.ts`: down_angle / up_angle / hysteresis state machine. Python `counter.py` 포팅.
   - Vitest: 인공 각도 시퀀스 입력에 정확한 카운트 수 검증.
 
-- [ ] **T2.3 — 푸시업 분류기**
+- [x] **T2.3 — 푸시업 분류기**
   - `web/src/exercise/classifiers/pushup.ts`: 양 팔꿈치 각도, 몸통 수평 조건.
   - Vitest: pushup motion sequence에 카운트 발생 검증.
 
