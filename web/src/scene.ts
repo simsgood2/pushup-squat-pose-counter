@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 
-export function initScene(canvas: HTMLCanvasElement): () => void {
+export type SceneContext = {
+  scene: THREE.Scene;
+  camera: THREE.PerspectiveCamera;
+  renderer: THREE.WebGLRenderer;
+  cleanup: () => void;
+};
+
+export function initScene(canvas: HTMLCanvasElement): SceneContext {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -45,8 +52,13 @@ export function initScene(canvas: HTMLCanvasElement): () => void {
 
   (window as unknown as Record<string, unknown>)['__sceneReady'] = true;
 
-  return () => {
-    cancelAnimationFrame(animFrameId);
-    renderer.dispose();
+  return {
+    scene,
+    camera,
+    renderer,
+    cleanup: () => {
+      cancelAnimationFrame(animFrameId);
+      renderer.dispose();
+    },
   };
 }

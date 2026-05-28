@@ -38,7 +38,7 @@
   - Vitest: poseStream API의 subscribe/unsubscribe 동작 단위 테스트 (worker는 mock).
   - 수락: Vitest 통과 + dev에서 콘솔에 landmark 좌표 흐름 확인.
 
-- [ ] **T1.4 — 스틱피규어 렌더러 (manny.fbx 부재시 기본)**
+- [x] **T1.4 — 스틱피규어 렌더러 (manny.fbx 부재시 기본)**
   - `web/src/character/stickFigure.ts`: 33개 small sphere + 주요 본 연결 cylinder. poseStream 좌표를 매 프레임 반영.
   - 좌표 변환: MediaPipe `worldLandmarks`의 미터 단위 좌표를 그대로 사용, Y축은 뒤집어 Three 좌표계 맞춤.
   - 수락: Playwright fixture로 mock landmark stream 주입 → 캔버스에 33개 점이 그려진 픽셀 분포 확인.
