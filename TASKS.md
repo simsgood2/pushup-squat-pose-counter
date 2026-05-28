@@ -43,7 +43,7 @@
   - 좌표 변환: MediaPipe `worldLandmarks`의 미터 단위 좌표를 그대로 사용, Y축은 뒤집어 Three 좌표계 맞춤.
   - 수락: Playwright fixture로 mock landmark stream 주입 → 캔버스에 33개 점이 그려진 픽셀 분포 확인.
 
-- [ ] **T1.5 — (Optional) FBX humanoid 본 리타게팅** — `assets/characters/manny.fbx` 있을 때만
+- [ ] ~~**T1.5 — (Optional) FBX humanoid 본 리타게팅**~~ — SKIPPED (`assets/characters/manny.fbx` 없음)
   - 파일 없으면 SKIPPED 표시 후 통과 처리.
   - `web/src/character/fbxLoader.ts`: FBXLoader로 manny 로드.
   - `web/src/character/retargetBones.ts`: MediaPipe 33 landmarks → UE5 본 (upperarm_l, lowerarm_l 등) quaternion 회전 매핑.
