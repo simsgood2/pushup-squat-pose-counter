@@ -90,6 +90,28 @@ Object.defineProperty(window, '__gridTowerCount', {
   get: () => grid.towerCount,
   configurable: true,
 });
+Object.defineProperty(window, '__defenseSpawnedEnemyCount', {
+  get: () => grid.spawnedEnemyCount,
+  configurable: true,
+});
+Object.defineProperty(window, '__defenseAliveEnemyCount', {
+  get: () => grid.aliveEnemyCount,
+  configurable: true,
+});
+Object.defineProperty(window, '__defenseKilledEnemyCount', {
+  get: () => grid.killedEnemyCount,
+  configurable: true,
+});
+Object.defineProperty(window, '__defenseReachedEndCount', {
+  get: () => grid.reachedEndCount,
+  configurable: true,
+});
+Object.defineProperty(window, '__defenseWaveComplete', {
+  get: () => grid.waveComplete,
+  configurable: true,
+});
+win['__placeGridTower'] = (row: number, col: number) => grid.placeTowerAt(row, col);
+win['__gridCellScreenPoint'] = (row: number, col: number) => grid.cellScreenPoint(row, col);
 
 function exposeCharacterDebug(group: THREE.Group): void {
   const bounds = new THREE.Box3().setFromObject(group);

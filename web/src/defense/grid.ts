@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import type { EnemyLogic } from './enemies';
+import { TowerLogic } from './towers';
+import { WaveLogic } from './waves';
 
 export interface GridCell {
   row: number;
@@ -70,8 +73,16 @@ export class DefenseGrid {
   private renderer: THREE.WebGLRenderer;
   private gridGroup: THREE.Group;
   private towerMeshes = new Map<string, THREE.Mesh>();
+  private towerLogics = new Map<string, TowerLogic>();
+  private enemyMeshes = new Map<number, THREE.Mesh>();
+  private projectileMeshes: THREE.Mesh[] = [];
   private groundPlane: THREE.Plane;
   private _clickHandler: (e: MouseEvent) => void;
+  private wave: WaveLogic;
+  private waveStarted = false;
+  private animFrameId = 0;
+  private lastUpdate = performance.now();
+  private accumulatedTime = 0;
 
   constructor(
     scene: THREE.Scene,
@@ -87,20 +98,70 @@ export class DefenseGrid {
     this.renderer = renderer;
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     this.gridGroup = new THREE.Group();
+    this.wave = new WaveLogic(this._buildPath());
     this._buildVisual();
     scene.add(this.gridGroup);
     this._clickHandler = this._handleClick.bind(this);
     renderer.domElement.addEventListener('click', this._clickHandler);
+    this._tick();
   }
 
   get towerCount(): number {
     return this._state.towerCount;
   }
 
+  get aliveEnemyCount(): number {
+    return this.wave.alive.length;
+  }
+
+  get killedEnemyCount(): number {
+    return this.wave.killedCount;
+  }
+
+  get reachedEndCount(): number {
+    return this.wave.reachedEndCount;
+  }
+
+  get spawnedEnemyCount(): number {
+    return this.wave.enemies.length;
+  }
+
+  get waveComplete(): boolean {
+    return this.wave.complete;
+  }
+
+  cellScreenPoint(row: number, col: number): { x: number; y: number } | null {
+    const cell = this._state.getCell(row, col);
+    if (!cell) return null;
+
+    const center = this._state.cellCenter(row, col);
+    const projected = new THREE.Vector3(center.x, 0, center.z).project(this.camera);
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    return {
+      x: rect.left + ((projected.x + 1) / 2) * rect.width,
+      y: rect.top + ((-projected.y + 1) / 2) * rect.height,
+    };
+  }
+
   placeTowerAt(row: number, col: number): boolean {
     if (!this._state.occupy(row, col)) return false;
     this._spawnTowerMesh(row, col);
+    this._spawnTowerLogic(row, col);
+    if (!this.waveStarted) {
+      this.wave.start(0);
+      this.waveStarted = true;
+    }
     return true;
+  }
+
+  private _buildPath(): { x: number; y: number; z: number }[] {
+    const row = Math.floor(this._state.rows / 2);
+    const left = this._state.cellCenter(row, 0);
+    const right = this._state.cellCenter(row, this._state.cols - 1);
+    return [
+      { x: left.x - this._state.cellSize * 1.5, y: 0.1, z: left.z },
+      { x: right.x + this._state.cellSize * 1.5, y: 0.1, z: right.z },
+    ];
   }
 
   private _buildVisual(): void {
@@ -140,6 +201,87 @@ export class DefenseGrid {
     this.towerMeshes.set(`${row},${col}`, mesh);
   }
 
+  private _spawnTowerLogic(row: number, col: number): void {
+    const center = this._state.cellCenter(row, col);
+    this.towerLogics.set(`${row},${col}`, new TowerLogic(row, col, {
+      x: center.x,
+      y: this._state.cellSize * 0.8,
+      z: center.z,
+    }));
+  }
+
+  private _spawnEnemyMesh(enemy: EnemyLogic): void {
+    const geo = new THREE.SphereGeometry(0.09, 16, 12);
+    const mat = new THREE.MeshLambertMaterial({ color: 0xff5555 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.position.set(enemy.position.x, enemy.position.y, enemy.position.z);
+    this.scene.add(mesh);
+    this.enemyMeshes.set(enemy.id, mesh);
+  }
+
+  private _syncEnemyMeshes(): void {
+    for (const enemy of this.wave.enemies) {
+      const mesh = this.enemyMeshes.get(enemy.id);
+      if (!mesh) continue;
+      mesh.position.set(enemy.position.x, enemy.position.y, enemy.position.z);
+      if (!enemy.alive) {
+        this.scene.remove(mesh);
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+        this.enemyMeshes.delete(enemy.id);
+      }
+    }
+  }
+
+  private _syncProjectileMeshes(): void {
+    for (const mesh of this.projectileMeshes) {
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+    }
+    this.projectileMeshes = [];
+
+    for (const tower of this.towerLogics.values()) {
+      for (const projectile of tower.projectiles) {
+        const geo = new THREE.SphereGeometry(0.035, 10, 8);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xffee66 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(projectile.position.x, projectile.position.y, projectile.position.z);
+        this.scene.add(mesh);
+        this.projectileMeshes.push(mesh);
+      }
+    }
+  }
+
+  private _tick(): void {
+    const now = performance.now();
+    const elapsed = Math.min((now - this.lastUpdate) / 1000, 1);
+    this.lastUpdate = now;
+    this.accumulatedTime += elapsed;
+
+    const fixedStep = 0.05;
+    let steps = 0;
+    while (this.accumulatedTime >= fixedStep && steps < 30) {
+      this._updateSimulation(fixedStep);
+      this.accumulatedTime -= fixedStep;
+      steps++;
+    }
+
+    this._syncEnemyMeshes();
+    this._syncProjectileMeshes();
+
+    this.animFrameId = requestAnimationFrame(() => this._tick());
+  }
+
+  private _updateSimulation(dt: number): void {
+    if (!this.waveStarted || this.waveComplete) return;
+    this.wave.update(dt, enemy => this._spawnEnemyMesh(enemy));
+    for (const tower of this.towerLogics.values()) {
+      tower.update(dt, this.wave.enemies);
+    }
+  }
+
   private _handleClick(event: MouseEvent): void {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -154,6 +296,7 @@ export class DefenseGrid {
   }
 
   dispose(): void {
+    cancelAnimationFrame(this.animFrameId);
     this.renderer.domElement.removeEventListener('click', this._clickHandler);
     this.scene.remove(this.gridGroup);
     for (const mesh of this.towerMeshes.values()) {
@@ -162,5 +305,18 @@ export class DefenseGrid {
       (mesh.material as THREE.Material).dispose();
     }
     this.towerMeshes.clear();
+    this.towerLogics.clear();
+    for (const mesh of this.enemyMeshes.values()) {
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+    }
+    this.enemyMeshes.clear();
+    for (const mesh of this.projectileMeshes) {
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+    }
+    this.projectileMeshes = [];
   }
 }
