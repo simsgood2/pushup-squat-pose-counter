@@ -261,4 +261,25 @@ describe('goldStore', () => {
     expect(s.combo).toBe(0);
     expect(s.variety).toBe(0);
   });
+
+  it('spendGold() 잔액 충분 시 차감하고 true 반환', () => {
+    goldStore.getState().addGold(100, 0, 0);
+    const ok = goldStore.getState().spendGold(30);
+    expect(ok).toBe(true);
+    expect(goldStore.getState().gold).toBe(70);
+  });
+
+  it('spendGold() 잔액 부족 시 변경 없이 false 반환', () => {
+    goldStore.getState().addGold(20, 0, 0);
+    const ok = goldStore.getState().spendGold(30);
+    expect(ok).toBe(false);
+    expect(goldStore.getState().gold).toBe(20);
+  });
+
+  it('spendGold() 정확히 같은 금액 소비 성공', () => {
+    goldStore.getState().addGold(30, 0, 0);
+    const ok = goldStore.getState().spendGold(30);
+    expect(ok).toBe(true);
+    expect(goldStore.getState().gold).toBe(0);
+  });
 });

@@ -18,6 +18,11 @@ test('T3.1: clicking canvas places a tower mesh on the grid', async ({ page }) =
     () => (window as unknown as Record<string, unknown>)['__forcePhase']?.('Defense')
   );
 
+  // Fund enough gold to place a tower (cost = 30)
+  await page.evaluate(
+    () => (window as unknown as Record<string, unknown>)['__addGold']?.(100)
+  );
+
   const clickPoint = await page.evaluate(() => {
     const win = window as unknown as {
       __gridCellScreenPoint: (row: number, col: number) => { x: number; y: number } | null;

@@ -3,16 +3,19 @@ import { createStore } from 'zustand/vanilla';
 export type Phase = 'Menu' | 'Exercise' | 'Defense' | 'WaveClear' | 'GameOver';
 
 export const EXERCISE_DURATION = 60;
+export const INITIAL_LIVES = 20;
 
 export interface PhaseState {
   phase: Phase;
   round: number;
   exerciseTimeLeft: number;
+  lives: number;
   start: () => void;
   exerciseTimeout: () => void;
   startDefense: () => void;
   waveCleared: () => void;
   gameOver: () => void;
+  loseLife: () => void;
   nextRound: () => void;
   setPhase: (p: Phase) => void;
   tickTimer: (dt: number) => void;
@@ -22,6 +25,7 @@ export const phaseStore = createStore<PhaseState>()((set, get) => ({
   phase: 'Menu',
   round: 1,
   exerciseTimeLeft: EXERCISE_DURATION,
+  lives: INITIAL_LIVES,
 
   start: () => {
     if (get().phase !== 'Menu') return;
@@ -46,6 +50,18 @@ export const phaseStore = createStore<PhaseState>()((set, get) => ({
   gameOver: () => {
     if (get().phase !== 'Defense') return;
     set({ phase: 'GameOver' });
+  },
+
+  loseLife: () => {
+    const s = get();
+    if (s.phase !== 'Defense') return;
+    const next = s.lives - 1;
+    if (next <= 0) {
+      set({ lives: 0 });
+      get().gameOver();
+    } else {
+      set({ lives: next });
+    }
   },
 
   nextRound: () => {

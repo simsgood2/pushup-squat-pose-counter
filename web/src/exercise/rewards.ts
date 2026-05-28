@@ -87,14 +87,21 @@ export interface GoldState {
   combo: number;
   variety: number;
   addGold: (amount: number, combo: number, variety: number) => void;
+  spendGold: (amount: number) => boolean;
   reset: () => void;
 }
 
-export const goldStore = createStore<GoldState>()((set) => ({
+export const goldStore = createStore<GoldState>()((set, get) => ({
   gold: 0,
   combo: 0,
   variety: 0,
   addGold: (amount, combo, variety) =>
     set((s) => ({ gold: s.gold + amount, combo, variety })),
+  spendGold: (amount) => {
+    const { gold } = get();
+    if (gold < amount) return false;
+    set({ gold: gold - amount });
+    return true;
+  },
   reset: () => set({ gold: 0, combo: 0, variety: 0 }),
 }));

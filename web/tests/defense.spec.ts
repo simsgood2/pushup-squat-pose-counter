@@ -10,6 +10,16 @@ test('T3.2: a placed tower kills wave enemies before they reach the end', async 
     { timeout: 10000 }
   );
 
+  // Fund enough gold to place a tower (cost = 30)
+  await page.evaluate(
+    () => (window as unknown as Record<string, unknown>)['__addGold']?.(100)
+  );
+
+  // Force Defense phase so grid input and placeTowerAt work
+  await page.evaluate(
+    () => (window as unknown as Record<string, unknown>)['__forcePhase']?.('Defense')
+  );
+
   const placed = await page.evaluate(() => {
     const win = window as unknown as {
       __placeGridTower: (row: number, col: number) => boolean;

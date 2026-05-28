@@ -1,4 +1,5 @@
-import { phaseStore, type Phase } from '../game/phaseMachine';
+import { phaseStore, INITIAL_LIVES, type Phase } from '../game/phaseMachine';
+import { TOWER_CONFIGS } from '../defense/towers';
 
 export class PhaseHud {
   private menuOverlay: HTMLDivElement;
@@ -10,6 +11,9 @@ export class PhaseHud {
   private startDefenseBtn: HTMLButtonElement;
   private nextRoundBtn: HTMLButtonElement;
   private gameOverOverlay: HTMLDivElement;
+  private livesEl: HTMLSpanElement;
+  private livesRow: HTMLDivElement;
+  private costRow: HTMLDivElement;
   private unsubscribe: () => void;
 
   constructor() {
@@ -57,9 +61,33 @@ export class PhaseHud {
     this.nextRoundBtn.style.cssText = 'margin-top: 8px; padding: 4px 10px; cursor: pointer; pointer-events: all; display: block;';
     this.nextRoundBtn.addEventListener('click', () => phaseStore.getState().nextRound());
 
+    this.livesEl = this._span('lives-label');
+    this.livesEl.textContent = String(INITIAL_LIVES);
+
+    this.livesRow = document.createElement('div');
+    this.livesRow.style.marginBottom = '4px';
+    const livesLbl = document.createElement('span');
+    livesLbl.textContent = '라이프: ';
+    livesLbl.style.opacity = '0.7';
+    this.livesRow.appendChild(livesLbl);
+    this.livesRow.appendChild(this.livesEl);
+
+    this.costRow = document.createElement('div');
+    this.costRow.style.marginBottom = '4px';
+    const costLbl = document.createElement('span');
+    costLbl.textContent = '타워 비용: ';
+    costLbl.style.opacity = '0.7';
+    const costVal = document.createElement('span');
+    costVal.setAttribute('data-testid', 'tower-cost-label');
+    costVal.textContent = String(TOWER_CONFIGS.basic.cost);
+    this.costRow.appendChild(costLbl);
+    this.costRow.appendChild(costVal);
+
     this.hudBar.appendChild(this._row('페이즈', this.phaseEl));
     this.hudBar.appendChild(this._row('라운드', this.roundEl));
     this.hudBar.appendChild(this.timerRow);
+    this.hudBar.appendChild(this.livesRow);
+    this.hudBar.appendChild(this.costRow);
     this.hudBar.appendChild(this.startDefenseBtn);
     this.hudBar.appendChild(this.nextRoundBtn);
     document.body.appendChild(this.hudBar);
@@ -142,16 +170,19 @@ export class PhaseHud {
     return row;
   }
 
-  private _render(state: { phase: Phase; round: number; exerciseTimeLeft: number }): void {
+  private _render(state: { phase: Phase; round: number; exerciseTimeLeft: number; lives: number }): void {
     this.phaseEl.textContent = state.phase;
     this.roundEl.textContent = String(state.round);
     this.timerEl.textContent = Math.ceil(state.exerciseTimeLeft) + 's';
+    this.livesEl.textContent = String(state.lives);
 
     this.menuOverlay.style.display = state.phase === 'Menu' ? 'flex' : 'none';
     this.gameOverOverlay.style.display = state.phase === 'GameOver' ? 'flex' : 'none';
     this.hudBar.style.display = state.phase === 'Menu' ? 'none' : 'block';
 
     this.timerRow.style.display = state.phase === 'Exercise' ? 'block' : 'none';
+    this.livesRow.style.display = state.phase === 'Defense' ? 'block' : 'none';
+    this.costRow.style.display = state.phase === 'Defense' ? 'block' : 'none';
     this.startDefenseBtn.style.display = state.phase === 'Exercise' ? 'block' : 'none';
     this.nextRoundBtn.style.display = state.phase === 'WaveClear' ? 'block' : 'none';
   }

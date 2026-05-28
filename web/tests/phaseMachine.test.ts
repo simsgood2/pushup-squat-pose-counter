@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { phaseStore, EXERCISE_DURATION } from '../src/game/phaseMachine';
+import { phaseStore, EXERCISE_DURATION, INITIAL_LIVES } from '../src/game/phaseMachine';
 
 function reset() {
-  phaseStore.setState({ phase: 'Menu', round: 1, exerciseTimeLeft: EXERCISE_DURATION });
+  phaseStore.setState({ phase: 'Menu', round: 1, exerciseTimeLeft: EXERCISE_DURATION, lives: INITIAL_LIVES });
 }
 
 describe('phaseMachine', () => {
@@ -101,6 +101,43 @@ describe('phaseMachine', () => {
   it('setPhase() forces any phase without validation', () => {
     phaseStore.getState().setPhase('Defense');
     expect(phaseStore.getState().phase).toBe('Defense');
+  });
+
+  it('initial lives is INITIAL_LIVES', () => {
+    expect(phaseStore.getState().lives).toBe(INITIAL_LIVES);
+  });
+
+  it('loseLife() Defense 페이즈에서 라이프 1 감소', () => {
+    phaseStore.getState().start();
+    phaseStore.getState().startDefense();
+    phaseStore.getState().loseLife();
+    expect(phaseStore.getState().lives).toBe(INITIAL_LIVES - 1);
+    expect(phaseStore.getState().phase).toBe('Defense');
+  });
+
+  it('loseLife() Defense 외 페이즈에서 무시', () => {
+    phaseStore.getState().loseLife(); // Menu 페이즈
+    expect(phaseStore.getState().lives).toBe(INITIAL_LIVES);
+    expect(phaseStore.getState().phase).toBe('Menu');
+  });
+
+  it('loseLife() lives가 0이 되면 GameOver로 전환', () => {
+    phaseStore.getState().start();
+    phaseStore.getState().startDefense();
+    phaseStore.setState({ lives: 1 });
+    phaseStore.getState().loseLife();
+    expect(phaseStore.getState().lives).toBe(0);
+    expect(phaseStore.getState().phase).toBe('GameOver');
+  });
+
+  it('loseLife() 여러 번 호출해도 GameOver 후에는 무시', () => {
+    phaseStore.getState().start();
+    phaseStore.getState().startDefense();
+    phaseStore.setState({ lives: 1 });
+    phaseStore.getState().loseLife(); // → GameOver
+    phaseStore.getState().loseLife(); // 무시 (Defense 아님)
+    expect(phaseStore.getState().lives).toBe(0);
+    expect(phaseStore.getState().phase).toBe('GameOver');
   });
 
   it('tickTimer() counts down in Exercise phase', () => {

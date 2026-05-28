@@ -97,6 +97,10 @@ grid.onWaveComplete = () => {
   phaseStore.getState().waveCleared();
 };
 
+grid.onEnemyReachedEnd = () => {
+  phaseStore.getState().loseLife();
+};
+
 // Exercise timer tick
 let lastTimerTime = performance.now();
 function timerLoop(): void {
@@ -145,6 +149,11 @@ Object.defineProperty(window, '__defenseWaveComplete', {
 });
 win['__placeGridTower'] = (row: number, col: number) => grid.placeTowerAt(row, col);
 win['__gridCellScreenPoint'] = (row: number, col: number) => grid.cellScreenPoint(row, col);
+win['__startDefenseWave'] = () => grid.startWave();
+win['__gold'] = () => goldStore.getState().gold;
+win['__addGold'] = (n: number) => goldStore.getState().addGold(n, 0, 0);
+win['__lives'] = () => phaseStore.getState().lives;
+win['__setLives'] = (n: number) => phaseStore.setState({ lives: n });
 
 function exposeCharacterDebug(group: THREE.Group): void {
   const bounds = new THREE.Box3().setFromObject(group);

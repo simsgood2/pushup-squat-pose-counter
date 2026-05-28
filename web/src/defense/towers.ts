@@ -5,10 +5,11 @@ export interface TowerConfig {
   damage: number;
   fireRate: number;       // shots per second
   projectileSpeed: number;
+  cost: number;
 }
 
 export const TOWER_CONFIGS: Record<string, TowerConfig> = {
-  basic: { range: 1.8, damage: 50, fireRate: 1.5, projectileSpeed: 6 },
+  basic: { range: 1.8, damage: 50, fireRate: 1.5, projectileSpeed: 6, cost: 30 },
 };
 
 export interface ProjectileState {

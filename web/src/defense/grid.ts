@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type { EnemyLogic } from './enemies';
-import { TowerLogic } from './towers';
+import { TowerLogic, TOWER_CONFIGS } from './towers';
 import { WaveLogic } from './waves';
+import { goldStore } from '../exercise/rewards';
 
 export interface GridCell {
   row: number;
@@ -85,7 +86,9 @@ export class DefenseGrid {
   private accumulatedTime = 0;
   private _inputEnabled = false;
   private _waveCompleteFired = false;
+  private _lastReachedEndCount = 0;
   onWaveComplete: (() => void) | null = null;
+  onEnemyReachedEnd: (() => void) | null = null;
 
   constructor(
     scene: THREE.Scene,
@@ -151,6 +154,8 @@ export class DefenseGrid {
   }
 
   placeTowerAt(row: number, col: number): boolean {
+    if (this._state.isOccupied(row, col)) return false;
+    if (!goldStore.getState().spendGold(TOWER_CONFIGS.basic.cost)) return false;
     if (!this._state.occupy(row, col)) return false;
     this._spawnTowerMesh(row, col);
     this._spawnTowerLogic(row, col);
@@ -159,6 +164,13 @@ export class DefenseGrid {
       this.waveStarted = true;
     }
     return true;
+  }
+
+  startWave(): void {
+    if (!this.waveStarted) {
+      this.wave.start(0);
+      this.waveStarted = true;
+    }
   }
 
   private _buildPath(): { x: number; y: number; z: number }[] {
@@ -287,6 +299,14 @@ export class DefenseGrid {
     for (const tower of this.towerLogics.values()) {
       tower.update(dt, this.wave.enemies);
     }
+    const newReached = this.wave.reachedEndCount - this._lastReachedEndCount;
+    if (newReached > 0) {
+      this._lastReachedEndCount = this.wave.reachedEndCount;
+      for (let i = 0; i < newReached; i++) {
+        this.onEnemyReachedEnd?.();
+      }
+    }
+
     if (this.wave.complete && !this._waveCompleteFired) {
       this._waveCompleteFired = true;
       this.onWaveComplete?.();
