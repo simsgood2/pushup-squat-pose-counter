@@ -73,7 +73,7 @@
   - 각각 `jump.ts`, `lunge.ts`, `jumpingJack.ts`. 규칙은 [docs/game-redesign-plan.md](docs/game-redesign-plan.md) 표 참조.
   - Vitest로 각 분류기 검증.
 
-- [ ] **T2.6 — 골드 시스템 + 콤보 + 깊이 보너스**
+- [x] **T2.6 — 골드 시스템 + 콤보 + 깊이 보너스**
   - `web/src/exercise/rewards.ts`: 동작별 기본 가치 + 콤보 배수 + 깊이 가산. Zustand store에 누적.
   - Vitest로 시나리오별 골드 결과 검증.
 
