@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { initScene } from './scene';
 import { PoseStream } from './mocap/poseStream';
-import { StickFigure } from './character/stickFigure';
 import { loadGLTFIntoScene } from './character/gltfLoader';
 import { retargetBones } from './character/retargetBones';
 import mannyGlbUrl from './assets/characters/manny.glb?url';
@@ -26,7 +25,6 @@ interface AnyClassifier {
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const { scene, camera, renderer } = initScene(canvas);
 
-const stickFigure = new StickFigure(scene);
 let characterGroup: THREE.Group | null = null;
 loadGLTFIntoScene(mannyGlbUrl, scene, {
   targetMaxDimension: 1.7,
@@ -54,8 +52,6 @@ const rewardTracker = new RewardTracker();
 let exerciseEnabled = false;
 
 function processLandmarks(result: LandmarkResult): void {
-  stickFigure.update(result);
-
   if (characterGroup && result.worldLandmarks?.[0]) {
     retargetBones(characterGroup, result.worldLandmarks[0] as Landmark3D[]);
   }
@@ -83,12 +79,18 @@ poseStream.start('/models/pose_landmarker_lite.task').catch(() => {
 const grid = new DefenseGrid(scene, camera, renderer);
 
 // Phase wiring
+const canBuild = (p: string) => p === 'Build' || p === 'Defense';
 exerciseEnabled = phaseStore.getState().phase === 'Exercise';
-grid.setInputEnabled(phaseStore.getState().phase === 'Defense');
+grid.setInputEnabled(canBuild(phaseStore.getState().phase));
 
+let lastPhase = phaseStore.getState().phase;
 phaseStore.subscribe((state) => {
   exerciseEnabled = state.phase === 'Exercise';
-  grid.setInputEnabled(state.phase === 'Defense');
+  grid.setInputEnabled(canBuild(state.phase));
+  if (state.phase === 'Defense' && lastPhase !== 'Defense') {
+    grid.startWave();
+  }
+  lastPhase = state.phase;
 });
 
 grid.onWaveComplete = () => {

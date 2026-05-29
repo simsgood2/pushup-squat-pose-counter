@@ -8,7 +8,8 @@ export class PhaseHud {
   private roundEl: HTMLSpanElement;
   private timerEl: HTMLSpanElement;
   private timerRow: HTMLDivElement;
-  private startDefenseBtn: HTMLButtonElement;
+  private startBuildBtn: HTMLButtonElement;
+  private startWaveBtn: HTMLButtonElement;
   private nextRoundBtn: HTMLButtonElement;
   private gameOverOverlay: HTMLDivElement;
   private livesEl: HTMLSpanElement;
@@ -49,11 +50,17 @@ export class PhaseHud {
     this.timerRow.appendChild(timerLbl);
     this.timerRow.appendChild(this.timerEl);
 
-    this.startDefenseBtn = document.createElement('button');
-    this.startDefenseBtn.setAttribute('data-testid', 'start-defense-btn');
-    this.startDefenseBtn.textContent = '디펜스 시작';
-    this.startDefenseBtn.style.cssText = 'margin-top: 8px; padding: 4px 10px; cursor: pointer; pointer-events: all; display: block;';
-    this.startDefenseBtn.addEventListener('click', () => phaseStore.getState().startDefense());
+    this.startBuildBtn = document.createElement('button');
+    this.startBuildBtn.setAttribute('data-testid', 'start-build-btn');
+    this.startBuildBtn.textContent = '건설 시작';
+    this.startBuildBtn.style.cssText = 'margin-top: 8px; padding: 4px 10px; cursor: pointer; pointer-events: all; display: block;';
+    this.startBuildBtn.addEventListener('click', () => phaseStore.getState().startBuild());
+
+    this.startWaveBtn = document.createElement('button');
+    this.startWaveBtn.setAttribute('data-testid', 'start-wave-btn');
+    this.startWaveBtn.textContent = '웨이브 시작';
+    this.startWaveBtn.style.cssText = 'margin-top: 8px; padding: 4px 10px; cursor: pointer; pointer-events: all; display: block;';
+    this.startWaveBtn.addEventListener('click', () => phaseStore.getState().startWave());
 
     this.nextRoundBtn = document.createElement('button');
     this.nextRoundBtn.setAttribute('data-testid', 'next-round-btn');
@@ -88,7 +95,8 @@ export class PhaseHud {
     this.hudBar.appendChild(this.timerRow);
     this.hudBar.appendChild(this.livesRow);
     this.hudBar.appendChild(this.costRow);
-    this.hudBar.appendChild(this.startDefenseBtn);
+    this.hudBar.appendChild(this.startBuildBtn);
+    this.hudBar.appendChild(this.startWaveBtn);
     this.hudBar.appendChild(this.nextRoundBtn);
     document.body.appendChild(this.hudBar);
 
@@ -180,10 +188,12 @@ export class PhaseHud {
     this.gameOverOverlay.style.display = state.phase === 'GameOver' ? 'flex' : 'none';
     this.hudBar.style.display = state.phase === 'Menu' ? 'none' : 'block';
 
+    const buildOrDefense = state.phase === 'Build' || state.phase === 'Defense';
     this.timerRow.style.display = state.phase === 'Exercise' ? 'block' : 'none';
-    this.livesRow.style.display = state.phase === 'Defense' ? 'block' : 'none';
-    this.costRow.style.display = state.phase === 'Defense' ? 'block' : 'none';
-    this.startDefenseBtn.style.display = state.phase === 'Exercise' ? 'block' : 'none';
+    this.livesRow.style.display = buildOrDefense ? 'block' : 'none';
+    this.costRow.style.display = buildOrDefense ? 'block' : 'none';
+    this.startBuildBtn.style.display = state.phase === 'Exercise' ? 'block' : 'none';
+    this.startWaveBtn.style.display = state.phase === 'Build' ? 'block' : 'none';
     this.nextRoundBtn.style.display = state.phase === 'WaveClear' ? 'block' : 'none';
   }
 

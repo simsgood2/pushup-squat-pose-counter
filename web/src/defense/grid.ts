@@ -159,18 +159,21 @@ export class DefenseGrid {
     if (!this._state.occupy(row, col)) return false;
     this._spawnTowerMesh(row, col);
     this._spawnTowerLogic(row, col);
-    if (!this.waveStarted) {
-      this.wave.start(0);
-      this.waveStarted = true;
-    }
     return true;
   }
 
   startWave(): void {
-    if (!this.waveStarted) {
-      this.wave.start(0);
-      this.waveStarted = true;
+    // Clear any leftover enemy meshes from a previous round before resetting wave state.
+    for (const mesh of this.enemyMeshes.values()) {
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
     }
+    this.enemyMeshes.clear();
+    this.wave.start(0);
+    this.waveStarted = true;
+    this._waveCompleteFired = false;
+    this._lastReachedEndCount = 0;
   }
 
   private _buildPath(): { x: number; y: number; z: number }[] {

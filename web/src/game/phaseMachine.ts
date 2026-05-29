@@ -1,6 +1,6 @@
 import { createStore } from 'zustand/vanilla';
 
-export type Phase = 'Menu' | 'Exercise' | 'Defense' | 'WaveClear' | 'GameOver';
+export type Phase = 'Menu' | 'Exercise' | 'Build' | 'Defense' | 'WaveClear' | 'GameOver';
 
 export const EXERCISE_DURATION = 60;
 export const INITIAL_LIVES = 20;
@@ -12,7 +12,8 @@ export interface PhaseState {
   lives: number;
   start: () => void;
   exerciseTimeout: () => void;
-  startDefense: () => void;
+  startBuild: () => void;
+  startWave: () => void;
   waveCleared: () => void;
   gameOver: () => void;
   loseLife: () => void;
@@ -34,11 +35,16 @@ export const phaseStore = createStore<PhaseState>()((set, get) => ({
 
   exerciseTimeout: () => {
     if (get().phase !== 'Exercise') return;
-    set({ phase: 'Defense' });
+    set({ phase: 'Build' });
   },
 
-  startDefense: () => {
+  startBuild: () => {
     if (get().phase !== 'Exercise') return;
+    set({ phase: 'Build' });
+  },
+
+  startWave: () => {
+    if (get().phase !== 'Build') return;
     set({ phase: 'Defense' });
   },
 
