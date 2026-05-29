@@ -18,13 +18,20 @@ import type { ExerciseState } from './exercise/repCounter';
 import { DefenseGrid } from './defense/grid';
 import { phaseStore } from './game/phaseMachine';
 import { TowerPanel } from './ui/TowerPanel';
+import { CameraTween } from './game/cameraTween';
+import { CAMERA_PRESETS } from './game/cameraPresets';
+import { flashLifeLoss } from './ui/feedback';
 
 interface AnyClassifier {
   update(lm: (Point3D | null)[]): ExerciseState;
 }
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-const { scene, camera, renderer } = initScene(canvas);
+const { scene, camera, renderer, controls } = initScene(canvas);
+
+// Camera tween system
+const cameraTween = new CameraTween();
+let currentLookAt = new THREE.Vector3(0, 0.85, 0);
 
 let characterGroup: THREE.Group | null = null;
 loadGLTFIntoScene(mannyGlbUrl, scene, {
@@ -97,6 +104,18 @@ phaseStore.subscribe((state) => {
     rewardTracker.reset();
     Object.keys(prevCounts).forEach(k => { prevCounts[k as ExerciseType] = 0; });
   }
+
+  // Camera preset transition
+  const presetKey = state.phase === 'Exercise' ? 'exercise' : (state.phase === 'Menu' || state.phase === 'GameOver' ? 'menu' : 'defense');
+  const preset = CAMERA_PRESETS[presetKey];
+  cameraTween.begin(camera, currentLookAt, preset);
+
+  // Visibility control: Exercise hides grid, others show it; Menu/WaveClear/GameOver show both, others hide character
+  const showGrid = state.phase !== 'Exercise';
+  const showCharacter = state.phase === 'Exercise' || state.phase === 'Menu' || state.phase === 'WaveClear' || state.phase === 'GameOver';
+  grid.setVisible(showGrid);
+  if (characterGroup) characterGroup.visible = showCharacter;
+
   lastPhase = state.phase;
 });
 
@@ -106,15 +125,25 @@ grid.onWaveComplete = () => {
 
 grid.onEnemyReachedEnd = () => {
   phaseStore.getState().loseLife();
+  flashLifeLoss();
 };
 
-// Exercise timer tick
+// Camera tween + Exercise timer tick
 let lastTimerTime = performance.now();
 function timerLoop(): void {
   const now = performance.now();
   const dt = Math.min((now - lastTimerTime) / 1000, 0.5);
   lastTimerTime = now;
   phaseStore.getState().tickTimer(dt);
+
+  // Update camera tween each frame
+  const updatedLookAt = cameraTween.update(camera);
+  if (updatedLookAt) {
+    currentLookAt.copy(updatedLookAt);
+    controls.target.copy(updatedLookAt);
+  }
+  controls.enabled = !cameraTween.active;
+
   requestAnimationFrame(timerLoop);
 }
 timerLoop();

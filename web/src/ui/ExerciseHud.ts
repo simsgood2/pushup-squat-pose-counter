@@ -9,23 +9,20 @@ export class ExerciseHud {
   constructor() {
     this.container = document.createElement('div');
     this.container.setAttribute('data-testid', 'exercise-hud');
+    this.container.className = 'hud-panel';
     this.container.style.cssText = [
       'position: fixed',
       'top: 16px',
       'left: 16px',
-      'background: rgba(0,0,0,0.65)',
-      'color: #fff',
-      'font-family: monospace',
-      'font-size: 15px',
-      'padding: 10px 16px',
-      'border-radius: 8px',
       'pointer-events: none',
       'z-index: 100',
       'min-width: 160px',
+      'font-size: 15px',
     ].join('; ');
 
     this.exerciseEl = this._span('exercise');
     this.exerciseEl.textContent = '—';
+    this.exerciseEl.style.color = 'var(--accent-cyan)';
     this.comboEl = this._span('combo');
     this.comboEl.textContent = '0';
     this.goldEl = this._span('gold');
@@ -54,7 +51,7 @@ export class ExerciseHud {
     row.style.marginBottom = '4px';
     const lbl = document.createElement('span');
     lbl.textContent = label + ': ';
-    lbl.style.opacity = '0.7';
+    lbl.className = 'hud-label-dim';
     row.appendChild(lbl);
     row.appendChild(valueEl);
     return row;

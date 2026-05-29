@@ -5,6 +5,7 @@ export type SceneContext = {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
+  controls: OrbitControls;
   cleanup: () => void;
 };
 
@@ -75,6 +76,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
     scene,
     camera,
     renderer,
+    controls,
     cleanup: () => {
       cancelAnimationFrame(animFrameId);
       renderer.dispose();

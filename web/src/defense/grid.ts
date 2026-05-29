@@ -6,6 +6,20 @@ import { goldStore } from '../exercise/rewards';
 import { phaseStore } from '../game/phaseMachine';
 import { towerSelectionStore } from './towerSelection';
 
+const COLORS = {
+  bgDeep:    0x07090d,
+  bgPanel:   0x0e1218,
+  accentCyan:  0x00ffd1,
+  accentBlue:  0x4d8aff,
+  warn:        0xff3360,
+  gridLine:    0x1a3340,
+  gridLineHi:  0x33ffd1,
+  pathBase:    0x0a1e26,
+  pathGlow:    0x00ffd1,
+  textBase:    0xe6f1ff,
+  textDim:     0x7d92b0,
+};
+
 export interface GridCell {
   row: number;
   col: number;
@@ -102,6 +116,9 @@ export class DefenseGrid {
   private _lastReachedEndCount = 0;
   private _rangeRingMesh: THREE.Mesh;
   private _splashRingMesh: THREE.Mesh;
+  private _hoverCellMesh: THREE.Mesh;
+  private _spawnMarkerMesh: THREE.Mesh;
+  private _endMarkerMesh: THREE.Mesh;
   onWaveComplete: (() => void) | null = null;
   onEnemyReachedEnd: (() => void) | null = null;
 
@@ -127,6 +144,10 @@ export class DefenseGrid {
     this._rangeRingMesh = this._makeRingMesh(0xffffff, 0.4);
     this._splashRingMesh = this._makeRingMesh(0xff8844, 0.3);
 
+    this._hoverCellMesh = this._makeHoverCellMesh();
+    this._spawnMarkerMesh = new THREE.Mesh();
+    this._endMarkerMesh = new THREE.Mesh();
+
     this._buildVisual();
     scene.add(this.gridGroup);
 
@@ -142,6 +163,16 @@ export class DefenseGrid {
     const geo = new THREE.RingGeometry(0.92, 1.0, 64);
     geo.rotateX(-Math.PI / 2);
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.visible = false;
+    this.scene.add(mesh);
+    return mesh;
+  }
+
+  private _makeHoverCellMesh(): THREE.Mesh {
+    const geo = new THREE.PlaneGeometry(1, 1);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({ color: COLORS.gridLineHi, transparent: true, opacity: 0.35 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.visible = false;
     this.scene.add(mesh);
@@ -170,6 +201,21 @@ export class DefenseGrid {
 
   setInputEnabled(enabled: boolean): void {
     this._inputEnabled = enabled;
+  }
+
+  setVisible(visible: boolean): void {
+    this.gridGroup.visible = visible;
+    for (const mesh of this.towerMeshes.values()) {
+      mesh.visible = visible;
+    }
+    for (const mesh of this.enemyMeshes.values()) {
+      mesh.visible = visible;
+    }
+    for (const mesh of this.projectileMeshes) {
+      mesh.visible = visible;
+    }
+    this._rangeRingMesh.visible = visible && this._rangeRingMesh.visible;
+    this._splashRingMesh.visible = visible && this._splashRingMesh.visible;
   }
 
   get towerCount(): number {
@@ -305,7 +351,7 @@ export class DefenseGrid {
     const sz = -totalH / 2;
 
     // Grid lines
-    const mat = new THREE.LineBasicMaterial({ color: 0x00ff88, opacity: 0.5, transparent: true });
+    const mat = new THREE.LineBasicMaterial({ color: COLORS.gridLine, opacity: 0.5, transparent: true });
     for (let r = 0; r <= rows; r++) {
       const z = sz + r * cellSize;
       const geo = new THREE.BufferGeometry().setFromPoints([
@@ -323,8 +369,8 @@ export class DefenseGrid {
       this.gridGroup.add(new THREE.Line(geo, mat));
     }
 
-    // Path floor tiles (brown)
-    const pathMat = new THREE.MeshBasicMaterial({ color: 0x6b4f2e });
+    // Path floor tiles (dark cyan base)
+    const pathMat = new THREE.MeshBasicMaterial({ color: COLORS.pathBase, transparent: true, opacity: 0.85 });
     for (const key of this._pathCells) {
       const [r, c] = key.split(',').map(Number);
       const center = this._state.cellCenter(r, c);
@@ -335,21 +381,38 @@ export class DefenseGrid {
       this.gridGroup.add(mesh);
     }
 
-    // Spawn marker (green cylinder at first path point)
-    const spawn = this._path[0];
-    const spawnGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.05, 16);
-    const spawnMat = new THREE.MeshBasicMaterial({ color: 0x55ff88 });
-    const spawnMesh = new THREE.Mesh(spawnGeo, spawnMat);
-    spawnMesh.position.set(spawn.x, 0.025, spawn.z);
-    this.gridGroup.add(spawnMesh);
+    // Path outline (glow edges)
+    const pathOutlineMat = new THREE.LineBasicMaterial({ color: COLORS.pathGlow, transparent: true, opacity: 0.6 });
+    for (const key of this._pathCells) {
+      const [r, c] = key.split(',').map(Number);
+      const center = this._state.cellCenter(r, c);
+      const half = cellSize / 2;
+      const points = [
+        new THREE.Vector3(center.x - half, 0.006, center.z - half),
+        new THREE.Vector3(center.x + half, 0.006, center.z - half),
+        new THREE.Vector3(center.x + half, 0.006, center.z + half),
+        new THREE.Vector3(center.x - half, 0.006, center.z + half),
+        new THREE.Vector3(center.x - half, 0.006, center.z - half),
+      ];
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      this.gridGroup.add(new THREE.Line(geo, pathOutlineMat));
+    }
 
-    // End marker (red cylinder at last path point)
+    // Spawn marker (cyan cylinder at first path point)
+    const spawn = this._path[0];
+    const spawnGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.03, 16);
+    const spawnMat = new THREE.MeshBasicMaterial({ color: COLORS.accentCyan });
+    this._spawnMarkerMesh = new THREE.Mesh(spawnGeo, spawnMat);
+    this._spawnMarkerMesh.position.set(spawn.x, 0.015, spawn.z);
+    this.gridGroup.add(this._spawnMarkerMesh);
+
+    // End marker (warn/red cylinder at last path point)
     const end = this._path[this._path.length - 1];
-    const endGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.05, 16);
-    const endMat = new THREE.MeshBasicMaterial({ color: 0xff5555 });
-    const endMesh = new THREE.Mesh(endGeo, endMat);
-    endMesh.position.set(end.x, 0.025, end.z);
-    this.gridGroup.add(endMesh);
+    const endGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.03, 16);
+    const endMat = new THREE.MeshBasicMaterial({ color: COLORS.warn });
+    this._endMarkerMesh = new THREE.Mesh(endGeo, endMat);
+    this._endMarkerMesh.position.set(end.x, 0.015, end.z);
+    this.gridGroup.add(this._endMarkerMesh);
   }
 
   private _spawnTowerMesh(row: number, col: number, kind: TowerKind): void {
@@ -435,6 +498,14 @@ export class DefenseGrid {
     this._syncEnemyMeshes();
     this._syncProjectileMeshes();
 
+    // Update marker pulse animation
+    const t = (performance.now() / 1000) * 4; // frequency: 4 rad/s
+    const pulse = 1 + 0.15 * Math.sin(t);
+    this._spawnMarkerMesh.scale.x = pulse;
+    this._spawnMarkerMesh.scale.z = pulse;
+    this._endMarkerMesh.scale.x = pulse;
+    this._endMarkerMesh.scale.z = pulse;
+
     this.animFrameId = requestAnimationFrame(() => this._tick());
   }
 
@@ -482,6 +553,7 @@ export class DefenseGrid {
     const phase = phaseStore.getState().phase;
     if (phase !== 'Build' && phase !== 'Defense') {
       this.hideRangePreview();
+      this._hoverCellMesh.visible = false;
       return;
     }
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -492,16 +564,34 @@ export class DefenseGrid {
     const hitPoint = new THREE.Vector3();
     if (!raycaster.ray.intersectPlane(this.groundPlane, hitPoint)) {
       this.hideRangePreview();
+      this._hoverCellMesh.visible = false;
       return;
     }
     const cellCoord = this._state.worldToCell(hitPoint.x, hitPoint.z);
     if (!cellCoord) {
       this.hideRangePreview();
+      this._hoverCellMesh.visible = false;
       return;
     }
     const center = this._state.cellCenter(cellCoord.row, cellCoord.col);
     const kind = towerSelectionStore.getState().selectedKind;
     this.showRangePreview(center.x, center.z, kind);
+
+    // Hover cell highlighting
+    const isPath = this._isPathCell(cellCoord.row, cellCoord.col);
+    const isOccupied = this._state.isOccupied(cellCoord.row, cellCoord.col);
+    const shouldHighlight = !isPath && !isOccupied;
+
+    this._hoverCellMesh.position.set(center.x, 0.008, center.z);
+    this._hoverCellMesh.scale.set(this._state.cellSize, 1, this._state.cellSize);
+    if (shouldHighlight) {
+      (this._hoverCellMesh.material as THREE.MeshBasicMaterial).color.setHex(COLORS.gridLineHi);
+      (this._hoverCellMesh.material as THREE.MeshBasicMaterial).opacity = 0.35;
+    } else if (isPath || isOccupied) {
+      (this._hoverCellMesh.material as THREE.MeshBasicMaterial).color.setHex(COLORS.warn);
+      (this._hoverCellMesh.material as THREE.MeshBasicMaterial).opacity = 0.35;
+    }
+    this._hoverCellMesh.visible = true;
   }
 
   dispose(): void {
@@ -511,6 +601,9 @@ export class DefenseGrid {
     this.scene.remove(this.gridGroup);
     this.scene.remove(this._rangeRingMesh);
     this.scene.remove(this._splashRingMesh);
+    this.scene.remove(this._hoverCellMesh);
+    this._hoverCellMesh.geometry.dispose();
+    (this._hoverCellMesh.material as THREE.Material).dispose();
     for (const mesh of this.towerMeshes.values()) {
       this.scene.remove(mesh);
       mesh.geometry.dispose();

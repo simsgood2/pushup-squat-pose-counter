@@ -1,6 +1,7 @@
 import { phaseStore, INITIAL_LIVES, type Phase } from '../game/phaseMachine';
 import { TOWER_CONFIGS } from '../defense/towers';
 import { goldStore } from '../exercise/rewards';
+import { spawnFloatingGold } from './feedback';
 
 export class PhaseHud {
   private menuOverlay: HTMLDivElement;
@@ -18,6 +19,7 @@ export class PhaseHud {
   private costRow: HTMLDivElement;
   private goldEl: HTMLSpanElement;
   private goldRow: HTMLDivElement;
+  private lastGoldAmount = 0;
   private unsubscribe: () => void;
   private unsubscribeGold: () => void;
 
@@ -27,19 +29,15 @@ export class PhaseHud {
 
     this.hudBar = document.createElement('div');
     this.hudBar.setAttribute('data-testid', 'phase-hud');
+    this.hudBar.className = 'hud-panel';
     this.hudBar.style.cssText = [
       'position: fixed',
       'top: 16px',
       'right: 16px',
-      'background: rgba(0,0,0,0.65)',
-      'color: #fff',
-      'font-family: monospace',
-      'font-size: 15px',
-      'padding: 10px 16px',
-      'border-radius: 8px',
       'pointer-events: none',
       'z-index: 100',
       'min-width: 140px',
+      'font-size: 15px',
     ].join('; ');
 
     this.phaseEl = this._span('phase-label');
@@ -50,26 +48,29 @@ export class PhaseHud {
     this.timerRow.style.marginBottom = '4px';
     const timerLbl = document.createElement('span');
     timerLbl.textContent = '남은 시간: ';
-    timerLbl.style.opacity = '0.7';
+    timerLbl.className = 'hud-label-dim';
     this.timerRow.appendChild(timerLbl);
     this.timerRow.appendChild(this.timerEl);
 
     this.startBuildBtn = document.createElement('button');
     this.startBuildBtn.setAttribute('data-testid', 'start-build-btn');
+    this.startBuildBtn.className = 'hud-btn';
     this.startBuildBtn.textContent = '건설 시작';
-    this.startBuildBtn.style.cssText = 'margin-top: 8px; padding: 4px 10px; cursor: pointer; pointer-events: all; display: block;';
+    this.startBuildBtn.style.cssText = 'margin-top: 8px; pointer-events: all; display: block;';
     this.startBuildBtn.addEventListener('click', () => phaseStore.getState().startBuild());
 
     this.startWaveBtn = document.createElement('button');
     this.startWaveBtn.setAttribute('data-testid', 'start-wave-btn');
+    this.startWaveBtn.className = 'hud-btn';
     this.startWaveBtn.textContent = '웨이브 시작';
-    this.startWaveBtn.style.cssText = 'margin-top: 8px; padding: 4px 10px; cursor: pointer; pointer-events: all; display: block;';
+    this.startWaveBtn.style.cssText = 'margin-top: 8px; pointer-events: all; display: block;';
     this.startWaveBtn.addEventListener('click', () => phaseStore.getState().startWave());
 
     this.nextRoundBtn = document.createElement('button');
     this.nextRoundBtn.setAttribute('data-testid', 'next-round-btn');
+    this.nextRoundBtn.className = 'hud-btn';
     this.nextRoundBtn.textContent = '다음 라운드';
-    this.nextRoundBtn.style.cssText = 'margin-top: 8px; padding: 4px 10px; cursor: pointer; pointer-events: all; display: block;';
+    this.nextRoundBtn.style.cssText = 'margin-top: 8px; pointer-events: all; display: block;';
     this.nextRoundBtn.addEventListener('click', () => phaseStore.getState().nextRound());
 
     this.livesEl = this._span('lives-label');
@@ -79,7 +80,7 @@ export class PhaseHud {
     this.livesRow.style.marginBottom = '4px';
     const livesLbl = document.createElement('span');
     livesLbl.textContent = '라이프: ';
-    livesLbl.style.opacity = '0.7';
+    livesLbl.className = 'hud-label-dim';
     this.livesRow.appendChild(livesLbl);
     this.livesRow.appendChild(this.livesEl);
 
@@ -87,7 +88,7 @@ export class PhaseHud {
     this.costRow.style.marginBottom = '4px';
     const costLbl = document.createElement('span');
     costLbl.textContent = '타워 비용: ';
-    costLbl.style.opacity = '0.7';
+    costLbl.className = 'hud-label-dim';
     const costVal = document.createElement('span');
     costVal.setAttribute('data-testid', 'tower-cost-label');
     costVal.textContent = String(TOWER_CONFIGS.basic.cost);
@@ -100,7 +101,7 @@ export class PhaseHud {
     this.goldRow.style.marginBottom = '4px';
     const goldLbl = document.createElement('span');
     goldLbl.textContent = '골드: ';
-    goldLbl.style.opacity = '0.7';
+    goldLbl.className = 'hud-label-dim';
     this.goldRow.appendChild(goldLbl);
     this.goldRow.appendChild(this.goldEl);
 
@@ -120,36 +121,33 @@ export class PhaseHud {
 
     this.unsubscribe = phaseStore.subscribe((state) => this._render(state));
     this.unsubscribeGold = goldStore.subscribe((state) => {
-      this.goldEl.textContent = String(Math.floor(state.gold));
+      const goldAmount = Math.floor(state.gold);
+      this.goldEl.textContent = String(goldAmount);
+      const delta = goldAmount - this.lastGoldAmount;
+      if (delta > 0) {
+        const rect = this.goldEl.getBoundingClientRect();
+        spawnFloatingGold(delta, rect.left, rect.top);
+      }
+      this.lastGoldAmount = goldAmount;
     });
+    this.lastGoldAmount = Math.floor(goldStore.getState().gold);
     this._render(phaseStore.getState());
   }
 
   private _buildMenuOverlay(): HTMLDivElement {
     const overlay = document.createElement('div');
     overlay.setAttribute('data-testid', 'menu-overlay');
-    overlay.style.cssText = [
-      'position: fixed',
-      'inset: 0',
-      'display: flex',
-      'flex-direction: column',
-      'align-items: center',
-      'justify-content: center',
-      'background: rgba(0,0,0,0.75)',
-      'color: #fff',
-      'font-family: monospace',
-      'z-index: 200',
-    ].join('; ');
+    overlay.className = 'hud-overlay';
 
     const title = document.createElement('h1');
     title.textContent = '모캡 디펜스';
-    title.style.marginBottom = '24px';
     overlay.appendChild(title);
 
     const btn = document.createElement('button');
     btn.setAttribute('data-testid', 'start-button');
+    btn.className = 'hud-btn';
     btn.textContent = '게임 시작';
-    btn.style.cssText = 'padding: 12px 32px; font-size: 18px; cursor: pointer;';
+    btn.style.cssText = 'padding: 12px 32px; font-size: 16px;';
     btn.addEventListener('click', () => phaseStore.getState().start());
     overlay.appendChild(btn);
 
@@ -159,18 +157,8 @@ export class PhaseHud {
   private _buildGameOverOverlay(): HTMLDivElement {
     const overlay = document.createElement('div');
     overlay.setAttribute('data-testid', 'game-over-overlay');
-    overlay.style.cssText = [
-      'position: fixed',
-      'inset: 0',
-      'display: none',
-      'flex-direction: column',
-      'align-items: center',
-      'justify-content: center',
-      'background: rgba(0,0,0,0.75)',
-      'color: #fff',
-      'font-family: monospace',
-      'z-index: 200',
-    ].join('; ');
+    overlay.className = 'hud-overlay';
+    overlay.style.display = 'none';
 
     const title = document.createElement('h1');
     title.textContent = '게임 오버';
@@ -178,8 +166,9 @@ export class PhaseHud {
 
     const restartBtn = document.createElement('button');
     restartBtn.setAttribute('data-testid', 'restart-btn');
+    restartBtn.className = 'hud-btn';
     restartBtn.textContent = '다시 시작';
-    restartBtn.style.cssText = 'margin-top: 20px; padding: 12px 32px; font-size: 16px; cursor: pointer;';
+    restartBtn.style.cssText = 'margin-top: 20px; padding: 12px 32px; font-size: 16px;';
     restartBtn.addEventListener('click', () => phaseStore.getState().restart());
     overlay.appendChild(restartBtn);
 

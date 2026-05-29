@@ -31,6 +31,7 @@ export class TowerPanel {
 
   private _buildPanel(): HTMLDivElement {
     const panel = document.createElement('div');
+    panel.className = 'hud-panel';
     panel.style.cssText = [
       'position: fixed',
       'right: 12px',
@@ -68,6 +69,7 @@ export class TowerPanel {
       'pointer-events: all',
       'min-width: 130px',
       'user-select: none',
+      'transition: box-shadow 0.15s, border-color 0.15s;',
     ].join('; ');
 
     const names: Record<TowerKind, string> = { basic: '기본', area: '광역', slow: '슬로우' };
@@ -96,10 +98,12 @@ export class TowerPanel {
 
     card.addEventListener('mouseenter', () => {
       this.grid.showRangePreview(0, 0, kind);
+      card.style.boxShadow = 'var(--shadow-glow)';
     });
 
     card.addEventListener('mouseleave', () => {
       this.grid.hideRangePreview();
+      card.style.boxShadow = '';
     });
 
     return card;
@@ -111,9 +115,15 @@ export class TowerPanel {
 
     for (const [kind, card] of this.cards) {
       const canAfford = gold >= TOWER_CONFIGS[kind].cost;
-      card.style.opacity = canAfford ? '1' : '0.4';
+      card.style.opacity = canAfford ? '1' : '0.5';
       card.style.cursor = canAfford ? 'pointer' : 'not-allowed';
-      card.style.borderColor = kind === selected ? '#4af' : 'transparent';
+      if (kind === selected) {
+        card.style.borderColor = 'var(--accent-cyan)';
+        card.style.boxShadow = 'var(--shadow-glow)';
+      } else {
+        card.style.borderColor = 'transparent';
+        card.style.boxShadow = '';
+      }
     }
   }
 
