@@ -24,9 +24,12 @@
 - 운동 분류기 5종 (푸시업, 스쿼트, 점프, 런지, 팔벌려뛰기) + 콤보/깊이/다양성 보너스
 - Zustand 골드 누적 + `ExerciseHud`
 - 페이즈 상태 머신: `Menu / Exercise / Build / Defense / WaveClear / GameOver`
-- `PhaseHud`: 메뉴, 페이즈/라운드/타이머/라이프/타워 비용, 건설/웨이브/다음 라운드 버튼
-- 디펜스: 8×8 그리드, 기본 타워(비용 30), 기본 적 1종, 직선 경로 웨이브(5마리)
-- 골드 차감, 라이프 시스템(초기 20), GameOver 전환, 라운드 N 웨이브 재시작
+- `PhaseHud`: 메뉴, 페이즈/라운드/타이머/라이프/골드 잔액/타워 비용, 건설/웨이브/다음 라운드 버튼
+- 디펜스 맵: ⊓자 경로(좌하 → 좌상 → 우상 → 우하), 경로 셀 타워 배치 금지, 스폰/엔드 마커
+- 디펜스: 8×8 그리드, 타워 3종(basic/area/slow), 적 4종(basic/fast/armored/boss)
+- 사이드 타워 패널: 카드 선택 + 사거리/splash 미리 보기 원
+- 웨이브 1~5 점진+보스 스크립트, 라운드별 적 종류 혼합
+- 골드 차감, 라이프 시스템(초기 20), GameOver → "다시 시작" → 메뉴 복귀(완전 리셋)
 
 ## 아키텍처
 
@@ -48,15 +51,17 @@ web/src/
 │   ├── rewards.ts
 │   └── classifiers/{pushup,squat,jump,lunge,jumpingJack}.ts
 ├── defense/
-│   ├── grid.ts                # 그리드, 타워 배치, 시뮬레이션 루프
-│   ├── towers.ts
-│   ├── enemies.ts
-│   └── waves.ts
+│   ├── grid.ts                # 그리드, ⊓자 경로, 타워 배치, 사거리 미리보기, 시뮬레이션 루프
+│   ├── towers.ts              # basic / area / slow 3종
+│   ├── enemies.ts             # basic / fast / armored / boss 4종 + 슬로우/감산
+│   ├── waves.ts               # 라운드 1~5 스크립트
+│   └── towerSelection.ts      # 선택된 타워 종류 zustand 스토어
 ├── game/
-│   └── phaseMachine.ts        # 페이즈 + phaseStore (Zustand)
+│   └── phaseMachine.ts        # 페이즈 + phaseStore (restart 포함)
 ├── ui/
 │   ├── ExerciseHud.ts
-│   └── PhaseHud.ts
+│   ├── PhaseHud.ts            # 골드/라이프/비용 HUD + GameOver 재시작 버튼
+│   └── TowerPanel.ts          # 사이드 타워 카드 패널
 └── assets/characters/manny.glb
 ```
 
@@ -76,15 +81,10 @@ web/src/
 
 T4.4~T4.5는 게임 로직, T4.6~T4.10은 비주얼 폴리시 트랙. 비주얼은 콘텐츠 종류(T4.4) 확정 뒤에 본격 진입해야 재작업이 적다.
 
-### T4.4 디펜스 콘텐츠 확장
-- 타워 3종: 단일딜 / 광역 / 슬로우
-- 적 3종: 기본 / 기갑 / 고속
-- 웨이브 1~5
+### ~~T4.4 디펜스 콘텐츠 확장~~ ✅ (2afac8d)
+### ~~T4.5 UX 정리~~ ✅ (2afac8d, 페이즈 가시성 분리 제외)
 
-### T4.5 UX 정리
-- 디펜스 HUD에 골드 잔액 표시
-- GameOver → 재시작 UI
-- 페이즈 전환 시 그리드/캐릭터 가시성 분리
+남은 T4.5 항목: 페이즈 전환 시 그리드/캐릭터 가시성 분리 (T4.6 카메라와 묶어 처리 예정).
 
 ### T4.6 페이즈별 카메라 / 씬 구도
 - 운동 페이즈: 캐릭터 정면 중심
