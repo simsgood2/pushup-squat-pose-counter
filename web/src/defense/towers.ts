@@ -1,15 +1,24 @@
 import type { Vec3, EnemyLogic } from './enemies';
 
+export type TowerKind = 'basic' | 'area' | 'slow';
+
 export interface TowerConfig {
+  kind: TowerKind;
+  cost: number;
   range: number;
   damage: number;
-  fireRate: number;       // shots per second
+  fireInterval: number;
   projectileSpeed: number;
-  cost: number;
+  color: number;
+  splashRadius?: number;
+  slowMultiplier?: number;
+  slowDuration?: number;
 }
 
-export const TOWER_CONFIGS: Record<string, TowerConfig> = {
-  basic: { range: 1.8, damage: 50, fireRate: 1.5, projectileSpeed: 6, cost: 30 },
+export const TOWER_CONFIGS: Record<TowerKind, TowerConfig> = {
+  basic: { kind: 'basic', cost: 30, range: 1.2, damage: 50, fireInterval: 0.6,  projectileSpeed: 4.5, color: 0x4488ff },
+  area:  { kind: 'area',  cost: 70, range: 1.0, damage: 35, fireInterval: 1.0,  projectileSpeed: 4.0, color: 0xff8844, splashRadius: 0.55 },
+  slow:  { kind: 'slow',  cost: 55, range: 1.4, damage: 15, fireInterval: 0.7,  projectileSpeed: 5.0, color: 0x66ccff, slowMultiplier: 0.45, slowDuration: 2.5 },
 };
 
 export interface ProjectileState {
@@ -17,29 +26,26 @@ export interface ProjectileState {
   targetId: number;
   speed: number;
   damage: number;
+  kind: TowerKind;
 }
 
 export class TowerLogic {
   readonly row: number;
   readonly col: number;
   readonly position: Vec3;
-  readonly range: number;
-  readonly damage: number;
-  readonly fireRate: number;
-  readonly projectileSpeed: number;
+  readonly config: TowerConfig;
   private _cooldown = 0;
   readonly projectiles: ProjectileState[] = [];
 
-  constructor(row: number, col: number, position: Vec3, config: TowerConfig = TOWER_CONFIGS.basic) {
+  constructor(row: number, col: number, position: Vec3, kind: TowerKind = 'basic') {
     this.row = row;
     this.col = col;
     this.position = { ...position };
-    this.range = config.range;
-    this.damage = config.damage;
-    this.fireRate = config.fireRate;
-    this.projectileSpeed = config.projectileSpeed;
+    this.config = TOWER_CONFIGS[kind];
   }
 
+  get range(): number { return this.config.range; }
+  get damage(): number { return this.config.damage; }
   get cooldown(): number { return this._cooldown; }
 
   /** Updates tower logic; returns gold earned this tick. */
@@ -53,17 +59,18 @@ export class TowerLogic {
         this.projectiles.push({
           position: { ...this.position },
           targetId: target.id,
-          speed: this.projectileSpeed,
-          damage: this.damage,
+          speed: this.config.projectileSpeed,
+          damage: this.config.damage,
+          kind: this.config.kind,
         });
-        this._cooldown = 1 / this.fireRate;
+        this._cooldown = this.config.fireInterval;
       }
     }
 
     const keep: ProjectileState[] = [];
     for (const proj of this.projectiles) {
       const target = enemies.find(e => e.id === proj.targetId && e.alive);
-      if (!target) continue; // target already dead — discard
+      if (!target) continue;
 
       const dx = target.position.x - proj.position.x;
       const dz = target.position.z - proj.position.z;
@@ -71,9 +78,22 @@ export class TowerLogic {
       const step = proj.speed * dt;
 
       if (step >= dist) {
-        // Hit target
-        const killed = target.takeDamage(proj.damage);
-        if (killed) goldEarned += target.reward;
+        if (proj.kind === 'area' && this.config.splashRadius) {
+          const hitPos = target.position;
+          for (const e of enemies) {
+            if (!e.alive) continue;
+            if (e.distanceTo2D(hitPos) <= this.config.splashRadius) {
+              const killed = e.takeDamage(proj.damage);
+              if (killed) goldEarned += e.reward;
+            }
+          }
+        } else {
+          const killed = target.takeDamage(proj.damage);
+          if (killed) goldEarned += target.reward;
+          if (proj.kind === 'slow' && this.config.slowMultiplier !== undefined && this.config.slowDuration !== undefined) {
+            if (target.alive) target.applySlow(this.config.slowMultiplier, this.config.slowDuration);
+          }
+        }
       } else {
         proj.position.x += (dx / dist) * step;
         proj.position.z += (dz / dist) * step;
@@ -88,7 +108,7 @@ export class TowerLogic {
 
   private _findTarget(enemies: EnemyLogic[]): EnemyLogic | null {
     let closest: EnemyLogic | null = null;
-    let minDist = this.range;
+    let minDist = this.config.range;
     for (const e of enemies) {
       if (!e.alive) continue;
       const d = e.distanceTo2D(this.position);

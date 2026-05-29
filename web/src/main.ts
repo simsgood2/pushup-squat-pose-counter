@@ -17,6 +17,7 @@ import type { Point3D } from './exercise/angle';
 import type { ExerciseState } from './exercise/repCounter';
 import { DefenseGrid } from './defense/grid';
 import { phaseStore } from './game/phaseMachine';
+import { TowerPanel } from './ui/TowerPanel';
 
 interface AnyClassifier {
   update(lm: (Point3D | null)[]): ExerciseState;
@@ -77,6 +78,7 @@ poseStream.start('/models/pose_landmarker_lite.task').catch(() => {
 });
 
 const grid = new DefenseGrid(scene, camera, renderer);
+new TowerPanel(grid);
 
 // Phase wiring
 const canBuild = (p: string) => p === 'Build' || p === 'Defense';
@@ -89,6 +91,11 @@ phaseStore.subscribe((state) => {
   grid.setInputEnabled(canBuild(state.phase));
   if (state.phase === 'Defense' && lastPhase !== 'Defense') {
     grid.startWave();
+  }
+  if (state.phase === 'Menu' && lastPhase === 'GameOver') {
+    grid.reset();
+    rewardTracker.reset();
+    Object.keys(prevCounts).forEach(k => { prevCounts[k as ExerciseType] = 0; });
   }
   lastPhase = state.phase;
 });

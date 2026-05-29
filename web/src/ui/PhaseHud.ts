@@ -1,5 +1,6 @@
 import { phaseStore, INITIAL_LIVES, type Phase } from '../game/phaseMachine';
 import { TOWER_CONFIGS } from '../defense/towers';
+import { goldStore } from '../exercise/rewards';
 
 export class PhaseHud {
   private menuOverlay: HTMLDivElement;
@@ -15,7 +16,10 @@ export class PhaseHud {
   private livesEl: HTMLSpanElement;
   private livesRow: HTMLDivElement;
   private costRow: HTMLDivElement;
+  private goldEl: HTMLSpanElement;
+  private goldRow: HTMLDivElement;
   private unsubscribe: () => void;
+  private unsubscribeGold: () => void;
 
   constructor() {
     this.menuOverlay = this._buildMenuOverlay();
@@ -90,10 +94,21 @@ export class PhaseHud {
     this.costRow.appendChild(costLbl);
     this.costRow.appendChild(costVal);
 
+    this.goldEl = this._span('hud-gold-label');
+    this.goldEl.textContent = '0';
+    this.goldRow = document.createElement('div');
+    this.goldRow.style.marginBottom = '4px';
+    const goldLbl = document.createElement('span');
+    goldLbl.textContent = '골드: ';
+    goldLbl.style.opacity = '0.7';
+    this.goldRow.appendChild(goldLbl);
+    this.goldRow.appendChild(this.goldEl);
+
     this.hudBar.appendChild(this._row('페이즈', this.phaseEl));
     this.hudBar.appendChild(this._row('라운드', this.roundEl));
     this.hudBar.appendChild(this.timerRow);
     this.hudBar.appendChild(this.livesRow);
+    this.hudBar.appendChild(this.goldRow);
     this.hudBar.appendChild(this.costRow);
     this.hudBar.appendChild(this.startBuildBtn);
     this.hudBar.appendChild(this.startWaveBtn);
@@ -104,6 +119,9 @@ export class PhaseHud {
     document.body.appendChild(this.gameOverOverlay);
 
     this.unsubscribe = phaseStore.subscribe((state) => this._render(state));
+    this.unsubscribeGold = goldStore.subscribe((state) => {
+      this.goldEl.textContent = String(Math.floor(state.gold));
+    });
     this._render(phaseStore.getState());
   }
 
@@ -158,6 +176,13 @@ export class PhaseHud {
     title.textContent = '게임 오버';
     overlay.appendChild(title);
 
+    const restartBtn = document.createElement('button');
+    restartBtn.setAttribute('data-testid', 'restart-btn');
+    restartBtn.textContent = '다시 시작';
+    restartBtn.style.cssText = 'margin-top: 20px; padding: 12px 32px; font-size: 16px; cursor: pointer;';
+    restartBtn.addEventListener('click', () => phaseStore.getState().restart());
+    overlay.appendChild(restartBtn);
+
     return overlay;
   }
 
@@ -191,6 +216,7 @@ export class PhaseHud {
     const buildOrDefense = state.phase === 'Build' || state.phase === 'Defense';
     this.timerRow.style.display = state.phase === 'Exercise' ? 'block' : 'none';
     this.livesRow.style.display = buildOrDefense ? 'block' : 'none';
+    this.goldRow.style.display = buildOrDefense ? 'block' : 'none';
     this.costRow.style.display = buildOrDefense ? 'block' : 'none';
     this.startBuildBtn.style.display = state.phase === 'Exercise' ? 'block' : 'none';
     this.startWaveBtn.style.display = state.phase === 'Build' ? 'block' : 'none';
@@ -199,6 +225,7 @@ export class PhaseHud {
 
   dispose(): void {
     this.unsubscribe();
+    this.unsubscribeGold();
     this.menuOverlay.remove();
     this.hudBar.remove();
     this.gameOverOverlay.remove();

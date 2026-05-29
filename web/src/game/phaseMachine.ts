@@ -1,4 +1,5 @@
 import { createStore } from 'zustand/vanilla';
+import { goldStore } from '../exercise/rewards';
 
 export type Phase = 'Menu' | 'Exercise' | 'Build' | 'Defense' | 'WaveClear' | 'GameOver';
 
@@ -20,6 +21,7 @@ export interface PhaseState {
   nextRound: () => void;
   setPhase: (p: Phase) => void;
   tickTimer: (dt: number) => void;
+  restart: () => void;
 }
 
 export const phaseStore = createStore<PhaseState>()((set, get) => ({
@@ -76,6 +78,11 @@ export const phaseStore = createStore<PhaseState>()((set, get) => ({
   },
 
   setPhase: (p: Phase) => set({ phase: p }),
+
+  restart: () => {
+    goldStore.getState().reset();
+    set({ phase: 'Menu', round: 1, exerciseTimeLeft: EXERCISE_DURATION, lives: INITIAL_LIVES });
+  },
 
   tickTimer: (dt: number) => {
     const s = get();

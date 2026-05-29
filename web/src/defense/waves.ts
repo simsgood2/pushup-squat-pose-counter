@@ -2,7 +2,7 @@ import { EnemyLogic, ENEMY_CONFIGS, type Vec3 } from './enemies';
 
 export interface EnemySpawn {
   type: string;
-  delay: number; // seconds after wave start
+  delay: number;
 }
 
 export interface WaveConfig {
@@ -10,15 +10,57 @@ export interface WaveConfig {
 }
 
 export const WAVES: WaveConfig[] = [
-  {
-    spawns: [
-      { type: 'basic', delay: 0 },
-      { type: 'basic', delay: 2 },
-      { type: 'basic', delay: 4 },
-      { type: 'basic', delay: 6 },
-      { type: 'basic', delay: 8 },
-    ],
-  },
+  // R1: basic only
+  { spawns: [
+    { type: 'basic', delay: 0 },
+    { type: 'basic', delay: 1.5 },
+    { type: 'basic', delay: 3 },
+    { type: 'basic', delay: 4.5 },
+    { type: 'basic', delay: 6 },
+  ]},
+  // R2: basic + fast
+  { spawns: [
+    { type: 'basic', delay: 0 },
+    { type: 'fast',  delay: 1 },
+    { type: 'basic', delay: 2 },
+    { type: 'fast',  delay: 3 },
+    { type: 'basic', delay: 4 },
+    { type: 'basic', delay: 5.5 },
+    { type: 'fast',  delay: 7 },
+  ]},
+  // R3: armored intro
+  { spawns: [
+    { type: 'basic',   delay: 0 },
+    { type: 'armored', delay: 1.5 },
+    { type: 'fast',    delay: 3 },
+    { type: 'basic',   delay: 4 },
+    { type: 'armored', delay: 5.5 },
+    { type: 'fast',    delay: 6.5 },
+    { type: 'basic',   delay: 8 },
+  ]},
+  // R4: all 3 mixed
+  { spawns: [
+    { type: 'fast',    delay: 0 },
+    { type: 'basic',   delay: 0.8 },
+    { type: 'armored', delay: 1.5 },
+    { type: 'fast',    delay: 2.5 },
+    { type: 'basic',   delay: 3 },
+    { type: 'fast',    delay: 4 },
+    { type: 'armored', delay: 5 },
+    { type: 'basic',   delay: 6 },
+    { type: 'armored', delay: 7 },
+    { type: 'fast',    delay: 8.5 },
+  ]},
+  // R5: boss + escort
+  { spawns: [
+    { type: 'fast',    delay: 0 },
+    { type: 'fast',    delay: 0.8 },
+    { type: 'armored', delay: 2 },
+    { type: 'armored', delay: 3.5 },
+    { type: 'boss',    delay: 5 },
+    { type: 'fast',    delay: 6 },
+    { type: 'fast',    delay: 7 },
+  ]},
 ];
 
 export class WaveLogic {
@@ -35,7 +77,8 @@ export class WaveLogic {
   }
 
   start(waveIndex: number): void {
-    const wave = WAVES[waveIndex];
+    const idx = Math.min(Math.max(0, waveIndex), WAVES.length - 1);
+    const wave = WAVES[idx];
     if (!wave) return;
     this.pending = [...wave.spawns];
     this._time = 0;
@@ -57,7 +100,6 @@ export class WaveLogic {
     return this.enemies.filter(e => e.reachedEnd).length;
   }
 
-  /** Advances time by dt; returns currently-alive enemies after update. */
   update(dt: number, onSpawn?: (e: EnemyLogic) => void): EnemyLogic[] {
     if (!this._active) return [];
     this._time += dt;
