@@ -1,4 +1,23 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 records/
+
+# Node / web
+web/node_modules/
+web/dist/
+web/.vite/
+web/coverage/
+web/test-results/
+web/playwright-report/
+
+# Overnight loop artifacts
+overnight.log
+DONE.flag
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
