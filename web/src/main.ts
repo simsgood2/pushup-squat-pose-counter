@@ -106,6 +106,8 @@ exerciseEnabled = phaseStore.getState().phase === 'Exercise';
 grid.setInputEnabled(canBuild(phaseStore.getState().phase));
 
 let lastPhase = phaseStore.getState().phase;
+let prevShowCharacter = true; // Menu starts with the character visible
+let pendingCharacterReveal = false; // reveal the character only after the camera settles
 phaseStore.subscribe((state) => {
   exerciseEnabled = state.phase === 'Exercise';
   grid.setInputEnabled(canBuild(state.phase));
@@ -118,16 +120,27 @@ phaseStore.subscribe((state) => {
     Object.keys(prevCounts).forEach(k => { prevCounts[k as ExerciseType] = 0; });
   }
 
-  // Camera preset transition
-  const presetKey = state.phase === 'Exercise' ? 'exercise' : (state.phase === 'Menu' || state.phase === 'GameOver' ? 'menu' : 'defense');
+  // Camera preset transition. WaveClear returns to the exercise (front) view.
+  const presetKey =
+    state.phase === 'Exercise' || state.phase === 'WaveClear' ? 'exercise'
+    : state.phase === 'Menu' || state.phase === 'GameOver' ? 'menu'
+    : 'defense';
   const preset = CAMERA_PRESETS[presetKey];
   cameraTween.begin(camera, currentLookAt, preset);
 
-  // Visibility control: Exercise hides grid, others show it; Menu/WaveClear/GameOver show both, others hide character
+  // Visibility: Exercise hides grid; Menu/Exercise/WaveClear/GameOver show the character.
   const showGrid = state.phase !== 'Exercise';
   const showCharacter = state.phase === 'Exercise' || state.phase === 'Menu' || state.phase === 'WaveClear' || state.phase === 'GameOver';
   grid.setVisible(showGrid);
-  if (characterGroup) characterGroup.visible = showCharacter;
+  if (showCharacter && !prevShowCharacter) {
+    // Summon: keep the character hidden until the camera tween settles.
+    if (characterGroup) characterGroup.visible = false;
+    pendingCharacterReveal = true;
+  } else {
+    if (characterGroup) characterGroup.visible = showCharacter;
+    pendingCharacterReveal = false;
+  }
+  prevShowCharacter = showCharacter;
 
   lastPhase = state.phase;
 });
@@ -156,6 +169,12 @@ function timerLoop(): void {
     controls.target.copy(updatedLookAt);
   }
   controls.enabled = !cameraTween.active;
+
+  // Reveal the character once the camera has finished returning.
+  if (pendingCharacterReveal && !cameraTween.active) {
+    if (characterGroup) characterGroup.visible = true;
+    pendingCharacterReveal = false;
+  }
 
   requestAnimationFrame(timerLoop);
 }

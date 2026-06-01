@@ -28,7 +28,7 @@ export function spawnExerciseFloat(
     `<span class="ef-name">${EXERCISE_LABELS[type] ?? type}</span> ` +
     `<span class="ef-gold">+${gold}</span>${comboHtml}`;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1100);
+  setTimeout(() => el.remove(), 1600);
 }
 
 export function flashLifeLoss(): void {
