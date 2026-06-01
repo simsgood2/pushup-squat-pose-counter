@@ -12,7 +12,7 @@
 | 캐릭터 | GLB (`manny.glb`), Three.js `GLTFLoader` |
 | 리타게팅 | 커스텀 본 매핑 + quaternion (거울 모드, 팔/다리, visibility-스케일 슬러프) |
 | 상태 관리 | Zustand vanilla (`goldStore`, `phaseStore`) |
-| UI | HTML overlay (`ExerciseHud`, `PhaseHud`) |
+| UI | HTML overlay (`PhaseHud` 우상단 통합 HUD + 캐릭터 근처 운동/콤보 플로팅) |
 
 `poseWorker.ts`는 보존 중이지만 현재 미사용. MediaPipe Tasks WASM이 module worker에서 안정적으로 초기화되지 않아 메인 스레드 경로를 기준으로 둠.
 
@@ -71,10 +71,9 @@ web/src/
 │   ├── cameraPresets.ts       # 페이즈별 카메라 position/lookAt 프리셋
 │   └── cameraTween.ts         # 1초 easeInOutCubic 카메라 트윈
 ├── ui/
-│   ├── ExerciseHud.ts
-│   ├── PhaseHud.ts            # 골드/라이프/비용 HUD + GameOver 재시작 버튼
+│   ├── PhaseHud.ts            # 우상단 통합 HUD (페이즈/라운드/골드/라이프/비용) + GameOver 재시작
 │   ├── TowerPanel.ts          # 사이드 타워 카드 패널
-│   └── feedback.ts            # 골드 플로팅 텍스트, 라이프 감소 플래시
+│   └── feedback.ts            # 캐릭터 근처 운동/콤보 플로팅, 라이프 감소 플래시
 └── assets/characters/manny.glb
 ```
 

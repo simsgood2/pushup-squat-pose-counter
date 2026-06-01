@@ -46,6 +46,19 @@
       @keyframes lifeFlash {
         0% { opacity: 0; } 30% { opacity: 0.35; } 100% { opacity: 0; }
       }
+
+      @keyframes exerciseFloat {
+        0%   { transform: translate(-50%, 0) scale(0.85); opacity: 0; }
+        15%  { transform: translate(-50%, -8px) scale(1.12); opacity: 1; }
+        100% { transform: translate(-50%, -72px) scale(1); opacity: 0; }
+      }
+      .exercise-float { position: fixed; pointer-events: none; z-index: 150; white-space: nowrap;
+        text-align: center; font-weight: bold; will-change: transform, opacity;
+        animation: exerciseFloat 1.1s ease-out forwards; }
+      .ef-name { color: var(--accent-cyan); font-size: 20px; text-shadow: 0 0 8px rgba(0, 255, 209, 0.6); }
+      .ef-gold { color: #ffe27a; font-size: 18px; text-shadow: 0 0 8px rgba(255, 210, 80, 0.6); }
+      .ef-combo { display: block; margin-top: 2px; color: var(--accent-blue); font-size: 15px;
+        letter-spacing: 0.06em; text-shadow: 0 0 8px rgba(77, 138, 255, 0.6); }
     </style>
   </head>
   <body>

@@ -5,7 +5,6 @@ import { loadGLTFIntoScene } from './character/gltfLoader';
 import { retargetBones } from './character/retargetBones';
 import mannyGlbUrl from './assets/characters/manny.glb?url';
 import type { LandmarkResult, Landmark3D } from './mocap/poseStream';
-import { ExerciseHud } from './ui/ExerciseHud';
 import { PhaseHud } from './ui/PhaseHud';
 import { PushupClassifier } from './exercise/classifiers/pushup';
 import { SquatClassifier } from './exercise/classifiers/squat';
@@ -20,7 +19,7 @@ import { phaseStore } from './game/phaseMachine';
 import { TowerPanel } from './ui/TowerPanel';
 import { CameraTween } from './game/cameraTween';
 import { CAMERA_PRESETS } from './game/cameraPresets';
-import { flashLifeLoss } from './ui/feedback';
+import { flashLifeLoss, spawnExerciseFloat } from './ui/feedback';
 
 interface AnyClassifier {
   update(lm: (Point3D | null)[]): ExerciseState;
@@ -40,8 +39,21 @@ loadGLTFIntoScene(mannyGlbUrl, scene, {
   characterGroup = group;
 }).catch(e => console.error("Failed to load manny:", e));
 
+// Screen-space point just above the character, for floating rep feedback.
+const _floatVec = new THREE.Vector3();
+function characterFloatPoint(): { x: number; y: number } {
+  if (characterGroup) characterGroup.getWorldPosition(_floatVec);
+  else _floatVec.set(0, 0, 0);
+  _floatVec.y += 1.5;
+  const projected = _floatVec.clone().project(camera);
+  const jitterX = (Math.random() - 0.5) * 70;
+  return {
+    x: (projected.x * 0.5 + 0.5) * window.innerWidth + jitterX,
+    y: (-projected.y * 0.5 + 0.5) * window.innerHeight,
+  };
+}
+
 const poseStream = new PoseStream();
-const hud = new ExerciseHud();
 new PhaseHud();
 
 const classifiers: { type: ExerciseType; clf: AnyClassifier }[] = [
@@ -71,9 +83,10 @@ function processLandmarks(result: LandmarkResult): void {
     const state = clf.update(lm);
     if (state.count > prevCounts[type]) {
       prevCounts[type] = state.count;
-      hud.setExercise(type);
       const { gold, comboCount } = rewardTracker.recordRep(type, state.angle);
       goldStore.getState().addGold(gold, comboCount, rewardTracker.getVarietyCount());
+      const pt = characterFloatPoint();
+      spawnExerciseFloat(type, gold, comboCount, pt.x, pt.y);
     }
   }
 }

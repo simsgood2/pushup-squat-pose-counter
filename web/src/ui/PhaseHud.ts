@@ -1,7 +1,6 @@
 import { phaseStore, INITIAL_LIVES, type Phase } from '../game/phaseMachine';
 import { TOWER_CONFIGS } from '../defense/towers';
 import { goldStore } from '../exercise/rewards';
-import { spawnFloatingGold } from './feedback';
 
 export class PhaseHud {
   private menuOverlay: HTMLDivElement;
@@ -19,7 +18,6 @@ export class PhaseHud {
   private costRow: HTMLDivElement;
   private goldEl: HTMLSpanElement;
   private goldRow: HTMLDivElement;
-  private lastGoldAmount = 0;
   private unsubscribe: () => void;
   private unsubscribeGold: () => void;
 
@@ -121,16 +119,9 @@ export class PhaseHud {
 
     this.unsubscribe = phaseStore.subscribe((state) => this._render(state));
     this.unsubscribeGold = goldStore.subscribe((state) => {
-      const goldAmount = Math.floor(state.gold);
-      this.goldEl.textContent = String(goldAmount);
-      const delta = goldAmount - this.lastGoldAmount;
-      if (delta > 0) {
-        const rect = this.goldEl.getBoundingClientRect();
-        spawnFloatingGold(delta, rect.left, rect.top);
-      }
-      this.lastGoldAmount = goldAmount;
+      this.goldEl.textContent = String(Math.floor(state.gold));
     });
-    this.lastGoldAmount = Math.floor(goldStore.getState().gold);
+    this.goldEl.textContent = String(Math.floor(goldStore.getState().gold));
     this._render(phaseStore.getState());
   }
 
@@ -203,9 +194,10 @@ export class PhaseHud {
     this.hudBar.style.display = state.phase === 'Menu' ? 'none' : 'block';
 
     const buildOrDefense = state.phase === 'Build' || state.phase === 'Defense';
+    const showGold = state.phase === 'Exercise' || buildOrDefense || state.phase === 'WaveClear';
     this.timerRow.style.display = state.phase === 'Exercise' ? 'block' : 'none';
     this.livesRow.style.display = buildOrDefense ? 'block' : 'none';
-    this.goldRow.style.display = buildOrDefense ? 'block' : 'none';
+    this.goldRow.style.display = showGold ? 'block' : 'none';
     this.costRow.style.display = buildOrDefense ? 'block' : 'none';
     this.startBuildBtn.style.display = state.phase === 'Exercise' ? 'block' : 'none';
     this.startWaveBtn.style.display = state.phase === 'Build' ? 'block' : 'none';
