@@ -1,6 +1,9 @@
 export interface Vec3 { x: number; y: number; z: number }
 
+export type EnemyKind = 'basic' | 'fast' | 'armored' | 'boss';
+
 export interface EnemyConfig {
+  kind: EnemyKind;
   hp: number;
   speed: number;
   reward: number;
@@ -9,11 +12,11 @@ export interface EnemyConfig {
   color?: number;
 }
 
-export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
-  basic:   { hp: 100,  speed: 1.2, reward: 10 },
-  fast:    { hp: 60,   speed: 2.4, reward: 15, color: 0xffd866 },
-  armored: { hp: 280,  speed: 0.9, reward: 25, damageReduction: 0.45, color: 0x9aa5b8 },
-  boss:    { hp: 2000, speed: 0.7, reward: 250, damageReduction: 0.25, scale: 2.2, color: 0xb854ff },
+export const ENEMY_CONFIGS: Record<EnemyKind, EnemyConfig> = {
+  basic:   { kind: 'basic',   hp: 100,  speed: 1.2, reward: 10, color: 0xff5566 },
+  fast:    { kind: 'fast',    hp: 60,   speed: 2.4, reward: 15, color: 0xffd866 },
+  armored: { kind: 'armored', hp: 280,  speed: 0.9, reward: 25, damageReduction: 0.45, color: 0x9aa5b8 },
+  boss:    { kind: 'boss',    hp: 2000, speed: 0.7, reward: 250, damageReduction: 0.25, scale: 2.2, color: 0xb854ff },
 };
 
 export class EnemyLogic {

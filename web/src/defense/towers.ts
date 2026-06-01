@@ -22,12 +22,23 @@ export const TOWER_CONFIGS: Record<TowerKind, TowerConfig> = {
 };
 
 export interface ProjectileState {
+  id: number;
   position: Vec3;
   targetId: number;
   speed: number;
   damage: number;
   kind: TowerKind;
 }
+
+/** Emitted when a projectile lands, so the renderer can spawn hit/death/gold FX. */
+export interface ImpactEvent {
+  position: Vec3;
+  kind: TowerKind;
+  /** True if this impact killed at least one enemy. */
+  killed: boolean;
+}
+
+let _projectileIdSeq = 0;
 
 export class TowerLogic {
   readonly row: number;
@@ -36,6 +47,8 @@ export class TowerLogic {
   readonly config: TowerConfig;
   private _cooldown = 0;
   readonly projectiles: ProjectileState[] = [];
+  /** Impacts that landed this tick; the renderer reads and clears this. */
+  readonly impacts: ImpactEvent[] = [];
 
   constructor(row: number, col: number, position: Vec3, kind: TowerKind = 'basic') {
     this.row = row;
@@ -57,6 +70,7 @@ export class TowerLogic {
       const target = this._findTarget(enemies);
       if (target) {
         this.projectiles.push({
+          id: _projectileIdSeq++,
           position: { ...this.position },
           targetId: target.id,
           speed: this.config.projectileSpeed,
@@ -78,22 +92,24 @@ export class TowerLogic {
       const step = proj.speed * dt;
 
       if (step >= dist) {
+        const hitPos = { ...target.position };
+        let killedAny = false;
         if (proj.kind === 'area' && this.config.splashRadius) {
-          const hitPos = target.position;
           for (const e of enemies) {
             if (!e.alive) continue;
             if (e.distanceTo2D(hitPos) <= this.config.splashRadius) {
               const killed = e.takeDamage(proj.damage);
-              if (killed) goldEarned += e.reward;
+              if (killed) { goldEarned += e.reward; killedAny = true; }
             }
           }
         } else {
           const killed = target.takeDamage(proj.damage);
-          if (killed) goldEarned += target.reward;
+          if (killed) { goldEarned += target.reward; killedAny = true; }
           if (proj.kind === 'slow' && this.config.slowMultiplier !== undefined && this.config.slowDuration !== undefined) {
             if (target.alive) target.applySlow(this.config.slowMultiplier, this.config.slowDuration);
           }
         }
+        this.impacts.push({ position: hitPos, kind: proj.kind, killed: killedAny });
       } else {
         proj.position.x += (dx / dist) * step;
         proj.position.z += (dz / dist) * step;

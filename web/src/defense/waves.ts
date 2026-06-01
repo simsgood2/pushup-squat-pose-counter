@@ -1,7 +1,7 @@
-import { EnemyLogic, ENEMY_CONFIGS, type Vec3 } from './enemies';
+import { EnemyLogic, ENEMY_CONFIGS, type Vec3, type EnemyKind } from './enemies';
 
 export interface EnemySpawn {
-  type: string;
+  type: EnemyKind;
   delay: number;
 }
 

@@ -30,6 +30,12 @@
 - 사이드 타워 패널: 카드 선택 + 사거리/splash 미리 보기 원
 - 웨이브 1~5 점진+보스 스크립트, 라운드별 적 종류 혼합
 - 골드 차감, 라이프 시스템(초기 20), GameOver → "다시 시작" → 메뉴 복귀(완전 리셋)
+- 페이즈별 카메라 프리셋 + 1초 easeInOutCubic 트윈 (Exercise: 정면, Defense/Build: 비스듬한 탑다운)
+- 페이즈별 가시성 토글: Exercise엔 그리드 숨김, Build/Defense엔 캐릭터 숨김
+- 맵 비주얼 폴리시: 경로 셀 다크 시안 + 글로우 외곽선, 스폰/엔드 마커 펄스, hover 셀 강조, 그리드 라인 어두운 시안
+- UI 다크 시안 통일: CSS 변수 + `.hud-*` 유틸 클래스, 골드 플로팅 텍스트, 라이프 감소 화면 플래시
+- 타워/적 절차적 지오메트리 (box/sphere → 종류별 형태 + emissive 네온 재질, `visuals.ts` 팩토리로 GLB 교체 대비)
+- 투사체 glow 스프라이트 + 페이드 trail, 피격 스파크 / 사망 폭발 링 / 골드 스파클 이펙트 (`effects.ts`)
 
 ## 아키텍처
 
@@ -51,17 +57,22 @@ web/src/
 │   ├── rewards.ts
 │   └── classifiers/{pushup,squat,jump,lunge,jumpingJack}.ts
 ├── defense/
-│   ├── grid.ts                # 그리드, ⊓자 경로, 타워 배치, 사거리 미리보기, 시뮬레이션 루프
-│   ├── towers.ts              # basic / area / slow 3종
-│   ├── enemies.ts             # basic / fast / armored / boss 4종 + 슬로우/감산
+│   ├── grid.ts                # 그리드, ⊓자 경로, 타워 배치, 영속 투사체 trail, 이펙트 연결, 시뮬레이션 루프
+│   ├── towers.ts              # basic / area / slow 3종 + projectile id / impact 이벤트
+│   ├── enemies.ts             # basic / fast / armored / boss 4종 (kind 포함) + 슬로우/감산
 │   ├── waves.ts               # 라운드 1~5 스크립트
+│   ├── visuals.ts             # 타워/적 절차적 지오메트리 팩토리 (GLB 교체 지점)
+│   ├── effects.ts             # 피격/사망/골드 파티클 + glow 텍스처 (additive)
 │   └── towerSelection.ts      # 선택된 타워 종류 zustand 스토어
 ├── game/
-│   └── phaseMachine.ts        # 페이즈 + phaseStore (restart 포함)
+│   ├── phaseMachine.ts        # 페이즈 + phaseStore (restart 포함)
+│   ├── cameraPresets.ts       # 페이즈별 카메라 position/lookAt 프리셋
+│   └── cameraTween.ts         # 1초 easeInOutCubic 카메라 트윈
 ├── ui/
 │   ├── ExerciseHud.ts
 │   ├── PhaseHud.ts            # 골드/라이프/비용 HUD + GameOver 재시작 버튼
-│   └── TowerPanel.ts          # 사이드 타워 카드 패널
+│   ├── TowerPanel.ts          # 사이드 타워 카드 패널
+│   └── feedback.ts            # 골드 플로팅 텍스트, 라이프 감소 플래시
 └── assets/characters/manny.glb
 ```
 
@@ -79,40 +90,22 @@ web/src/
 
 ## 남은 태스크
 
-T4.4~T4.5는 게임 로직, T4.6~T4.10은 비주얼 폴리시 트랙. 비주얼은 콘텐츠 종류(T4.4) 확정 뒤에 본격 진입해야 재작업이 적다.
-
 ### ~~T4.4 디펜스 콘텐츠 확장~~ ✅ (2afac8d)
-### ~~T4.5 UX 정리~~ ✅ (2afac8d, 페이즈 가시성 분리 제외)
+### ~~T4.5 UX 정리~~ ✅ (2afac8d + 5668e9d)
+### ~~T4.6 페이즈별 카메라 / 씬 구도~~ ✅ (5668e9d)
+### ~~T4.7 디펜스 맵 비주얼~~ ✅ (5668e9d)
+### ~~T4.10 UI 비주얼 폴리시~~ ✅ (5668e9d)
 
-남은 T4.5 항목: 페이즈 전환 시 그리드/캐릭터 가시성 분리 (T4.6 카메라와 묶어 처리 예정).
-
-### T4.6 페이즈별 카메라 / 씬 구도
-- 운동 페이즈: 캐릭터 정면 중심
-- 디펜스 페이즈: 그리드 비스듬한 탑다운
-- 페이즈 전환 시 카메라 트윈
-
-### T4.7 디펜스 맵 비주얼
-- 타일 머티리얼 (셀별 텍스처 또는 PBR)
-- 적 경로 하이라이트, 스폰/엔드 마커
-- hover 시 배치 가능/불가 피드백
-- 맵 외곽 데코
-
-### T4.8 모델 업그레이드
-- 기본 타워: 박스 → GLB 모델
-- 적: 종류별 GLB
-- 투사체: trail / glow
-- 피격 / 사망 / 골드 획득 이펙트
+### ~~T4.8 모델 업그레이드~~ ✅ (지오메트리 버전)
+- 타워/적: box/sphere → 종류별 절차적 지오메트리 + emissive 네온 재질 (`visuals.ts` 팩토리 → 추후 GLB로 한 줄 교체)
+- 투사체: glow 스프라이트 + 페이드 trail
+- 피격(스파크) / 사망(폭발 링 + puff) / 골드(상승 스파클) 이펙트 (`effects.ts`)
+- 실제 GLB 에셋 교체는 에셋 확보 후 진행 (visuals.ts 내부만 수정)
 
 ### T4.9 환경 / 조명
 - 스카이박스 또는 HDR 환경 맵
 - 디렉셔널 라이트 + 그림자
 - 톤매핑 / 후처리 (블룸 등)
-
-### T4.10 UI 비주얼 폴리시
-- HUD 톤 통일
-- 라이프 감소 / 골드 획득 / 콤보 시각 피드백
-- GameOver / WaveClear / Menu 오버레이 디자인
-- 폰트 / 컬러 시스템
 
 ### 범위 밖 (당장은)
 - VRM 재도입

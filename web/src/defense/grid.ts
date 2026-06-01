@@ -5,6 +5,23 @@ import { WaveLogic, WAVES } from './waves';
 import { goldStore } from '../exercise/rewards';
 import { phaseStore } from '../game/phaseMachine';
 import { towerSelectionStore } from './towerSelection';
+import { createTowerObject, createEnemyObject, disposeObject3D, type TowerVisual } from './visuals';
+import { EffectsManager, makeGlowSprite } from './effects';
+
+const PROJECTILE_COLORS: Record<TowerKind, number> = {
+  basic: 0x66aaff,
+  area: 0xffaa55,
+  slow: 0x88ddff,
+};
+
+const TRAIL_LENGTH = 8;
+
+interface ProjectileViz {
+  glow: THREE.Sprite;
+  core: THREE.Mesh;
+  trail: THREE.Line;
+  positions: THREE.Vector3[];
+}
 
 const COLORS = {
   bgDeep:    0x07090d,
@@ -97,10 +114,11 @@ export class DefenseGrid {
   private camera: THREE.Camera;
   private renderer: THREE.WebGLRenderer;
   private gridGroup: THREE.Group;
-  private towerMeshes = new Map<string, THREE.Mesh>();
+  private towerVisuals = new Map<string, TowerVisual>();
   private towerLogics = new Map<string, TowerLogic>();
-  private enemyMeshes = new Map<number, THREE.Mesh>();
-  private projectileMeshes: THREE.Mesh[] = [];
+  private enemyMeshes = new Map<number, THREE.Object3D>();
+  private projectileViz = new Map<number, ProjectileViz>();
+  private effects: EffectsManager;
   private groundPlane: THREE.Plane;
   private _clickHandler: (e: MouseEvent) => void;
   private _mousemoveHandler: (e: MouseEvent) => void;
@@ -136,6 +154,7 @@ export class DefenseGrid {
     this.renderer = renderer;
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     this.gridGroup = new THREE.Group();
+    this.effects = new EffectsManager(scene);
 
     this._path = this._buildPath();
     this._markPathCells();
@@ -205,15 +224,18 @@ export class DefenseGrid {
 
   setVisible(visible: boolean): void {
     this.gridGroup.visible = visible;
-    for (const mesh of this.towerMeshes.values()) {
-      mesh.visible = visible;
+    for (const tv of this.towerVisuals.values()) {
+      tv.object.visible = visible;
     }
     for (const mesh of this.enemyMeshes.values()) {
       mesh.visible = visible;
     }
-    for (const mesh of this.projectileMeshes) {
-      mesh.visible = visible;
+    for (const viz of this.projectileViz.values()) {
+      viz.glow.visible = visible;
+      viz.core.visible = visible;
+      viz.trail.visible = visible;
     }
+    this.effects.setVisible(visible);
     this._rangeRingMesh.visible = visible && this._rangeRingMesh.visible;
     this._splashRingMesh.visible = visible && this._splashRingMesh.visible;
   }
@@ -268,10 +290,11 @@ export class DefenseGrid {
   startWave(): void {
     for (const mesh of this.enemyMeshes.values()) {
       this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+      disposeObject3D(mesh);
     }
     this.enemyMeshes.clear();
+    this._clearProjectileViz();
+    this.effects.clear();
     const roundIndex = Math.min(phaseStore.getState().round - 1, WAVES.length - 1);
     this.wave.start(roundIndex);
     this.waveStarted = true;
@@ -280,27 +303,21 @@ export class DefenseGrid {
   }
 
   reset(): void {
-    for (const mesh of this.towerMeshes.values()) {
-      this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+    for (const tv of this.towerVisuals.values()) {
+      this.scene.remove(tv.object);
+      disposeObject3D(tv.object);
     }
-    this.towerMeshes.clear();
+    this.towerVisuals.clear();
     this.towerLogics.clear();
 
     for (const mesh of this.enemyMeshes.values()) {
       this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+      disposeObject3D(mesh);
     }
     this.enemyMeshes.clear();
 
-    for (const mesh of this.projectileMeshes) {
-      this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
-    }
-    this.projectileMeshes = [];
+    this._clearProjectileViz();
+    this.effects.clear();
 
     this._state.clearTowers();
     this.waveStarted = false;
@@ -416,15 +433,11 @@ export class DefenseGrid {
   }
 
   private _spawnTowerMesh(row: number, col: number, kind: TowerKind): void {
-    const { cellSize } = this._state;
     const center = this._state.cellCenter(row, col);
-    const h = cellSize * 0.8;
-    const geo = new THREE.BoxGeometry(cellSize * 0.7, h, cellSize * 0.7);
-    const mat = new THREE.MeshLambertMaterial({ color: TOWER_CONFIGS[kind].color });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(center.x, h / 2, center.z);
-    this.scene.add(mesh);
-    this.towerMeshes.set(`${row},${col}`, mesh);
+    const visual = createTowerObject(kind);
+    visual.object.position.set(center.x, 0, center.z);
+    this.scene.add(visual.object);
+    this.towerVisuals.set(`${row},${col}`, visual);
   }
 
   private _spawnTowerLogic(row: number, col: number, kind: TowerKind): void {
@@ -437,12 +450,8 @@ export class DefenseGrid {
   }
 
   private _spawnEnemyMesh(enemy: EnemyLogic): void {
-    const radius = 0.09 * (enemy.config.scale ?? 1);
-    const geo = new THREE.SphereGeometry(radius, 16, 12);
-    const mat = new THREE.MeshLambertMaterial({ color: enemy.config.color ?? 0xff5555 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true;
-    mesh.position.set(enemy.position.x, enemy.position.y, enemy.position.z);
+    const mesh = createEnemyObject(enemy.config);
+    mesh.position.set(enemy.position.x, enemy.position.y + 0.12, enemy.position.z);
     this.scene.add(mesh);
     this.enemyMeshes.set(enemy.id, mesh);
   }
@@ -451,34 +460,116 @@ export class DefenseGrid {
     for (const enemy of this.wave.enemies) {
       const mesh = this.enemyMeshes.get(enemy.id);
       if (!mesh) continue;
-      mesh.position.set(enemy.position.x, enemy.position.y, enemy.position.z);
+      mesh.position.set(enemy.position.x, enemy.position.y + 0.12, enemy.position.z);
       if (!enemy.alive) {
+        // Killed enemies burst + drop gold; ones that reached the exit just leave.
+        if (!enemy.reachedEnd) {
+          this.effects.spawnDeath(
+            { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+            enemy.config.color ?? 0xff5566,
+            enemy.config.scale ?? 1
+          );
+          if (enemy.reward > 0) {
+            this.effects.spawnGold({ x: mesh.position.x, y: mesh.position.y, z: mesh.position.z });
+          }
+        }
         this.scene.remove(mesh);
-        mesh.geometry.dispose();
-        (mesh.material as THREE.Material).dispose();
+        disposeObject3D(mesh);
         this.enemyMeshes.delete(enemy.id);
       }
     }
   }
 
-  private _syncProjectileMeshes(): void {
-    for (const mesh of this.projectileMeshes) {
-      this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
-    }
-    this.projectileMeshes = [];
-
+  private _syncProjectiles(): void {
+    const live = new Set<number>();
     for (const tower of this.towerLogics.values()) {
-      for (const projectile of tower.projectiles) {
-        const geo = new THREE.SphereGeometry(0.035, 10, 8);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xffee66 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(projectile.position.x, projectile.position.y, projectile.position.z);
-        this.scene.add(mesh);
-        this.projectileMeshes.push(mesh);
+      for (const proj of tower.projectiles) {
+        live.add(proj.id);
+        let viz = this.projectileViz.get(proj.id);
+        if (!viz) {
+          viz = this._makeProjectileViz(proj.kind, proj.position);
+          this.projectileViz.set(proj.id, viz);
+        }
+        const p = proj.position;
+        viz.glow.position.set(p.x, p.y, p.z);
+        viz.core.position.set(p.x, p.y, p.z);
+        viz.positions.push(new THREE.Vector3(p.x, p.y, p.z));
+        if (viz.positions.length > TRAIL_LENGTH) viz.positions.shift();
+        this._updateTrailGeometry(viz);
       }
     }
+    for (const [id, viz] of this.projectileViz) {
+      if (!live.has(id)) {
+        this._removeProjectileViz(viz);
+        this.projectileViz.delete(id);
+      }
+    }
+  }
+
+  private _makeProjectileViz(kind: TowerKind, pos: { x: number; y: number; z: number }): ProjectileViz {
+    const color = PROJECTILE_COLORS[kind];
+    const glow = makeGlowSprite(color, 0.18);
+    glow.position.set(pos.x, pos.y, pos.z);
+    this.scene.add(glow);
+
+    const core = new THREE.Mesh(
+      new THREE.SphereGeometry(0.03, 10, 8),
+      new THREE.MeshBasicMaterial({ color })
+    );
+    core.position.set(pos.x, pos.y, pos.z);
+    this.scene.add(core);
+
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(TRAIL_LENGTH * 3);
+    const colors = new Float32Array(TRAIL_LENGTH * 3);
+    const c = new THREE.Color(color);
+    for (let i = 0; i < TRAIL_LENGTH; i++) {
+      const f = i / (TRAIL_LENGTH - 1); // 0 = tail (dim), 1 = head (bright)
+      colors[i * 3] = c.r * f;
+      colors[i * 3 + 1] = c.g * f;
+      colors[i * 3 + 2] = c.b * f;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const mat = new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.7,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const trail = new THREE.Line(geo, mat);
+    this.scene.add(trail);
+
+    return { glow, core, trail, positions: [] };
+  }
+
+  private _updateTrailGeometry(viz: ProjectileViz): void {
+    const attr = viz.trail.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const arr = attr.array as Float32Array;
+    const pts = viz.positions;
+    const n = pts.length;
+    for (let i = 0; i < TRAIL_LENGTH; i++) {
+      const srcIdx = n - TRAIL_LENGTH + i;
+      const p = srcIdx >= 0 ? pts[srcIdx] : pts[0];
+      arr[i * 3] = p.x;
+      arr[i * 3 + 1] = p.y;
+      arr[i * 3 + 2] = p.z;
+    }
+    attr.needsUpdate = true;
+  }
+
+  private _removeProjectileViz(viz: ProjectileViz): void {
+    this.scene.remove(viz.glow);
+    viz.glow.material.dispose();
+    this.scene.remove(viz.core);
+    viz.core.geometry.dispose();
+    (viz.core.material as THREE.Material).dispose();
+    this.scene.remove(viz.trail);
+    viz.trail.geometry.dispose();
+    (viz.trail.material as THREE.Material).dispose();
+  }
+
+  private _clearProjectileViz(): void {
+    for (const viz of this.projectileViz.values()) this._removeProjectileViz(viz);
+    this.projectileViz.clear();
   }
 
   private _tick(): void {
@@ -496,10 +587,25 @@ export class DefenseGrid {
     }
 
     this._syncEnemyMeshes();
-    this._syncProjectileMeshes();
+    this._syncProjectiles();
+    this.effects.update(elapsed);
+
+    const nowSec = now / 1000;
+
+    // Tower cores spin + pulse for a sense of life.
+    const corePulse = 1 + 0.12 * Math.sin(nowSec * 3);
+    for (const tv of this.towerVisuals.values()) {
+      tv.core.rotation.y = nowSec * 1.5;
+      tv.core.scale.setScalar(corePulse);
+    }
+
+    // Enemies slowly rotate (boss ring orbits).
+    for (const mesh of this.enemyMeshes.values()) {
+      mesh.rotation.y = nowSec * 0.9;
+    }
 
     // Update marker pulse animation
-    const t = (performance.now() / 1000) * 4; // frequency: 4 rad/s
+    const t = nowSec * 4; // frequency: 4 rad/s
     const pulse = 1 + 0.15 * Math.sin(t);
     this._spawnMarkerMesh.scale.x = pulse;
     this._spawnMarkerMesh.scale.z = pulse;
@@ -518,6 +624,12 @@ export class DefenseGrid {
       if (gold > 0) {
         const gs = goldStore.getState();
         gs.addGold(gold, gs.combo, gs.variety);
+      }
+      if (tower.impacts.length > 0) {
+        for (const im of tower.impacts) {
+          this.effects.spawnHit(im.position, PROJECTILE_COLORS[im.kind]);
+        }
+        tower.impacts.length = 0;
       }
     }
 
@@ -604,24 +716,18 @@ export class DefenseGrid {
     this.scene.remove(this._hoverCellMesh);
     this._hoverCellMesh.geometry.dispose();
     (this._hoverCellMesh.material as THREE.Material).dispose();
-    for (const mesh of this.towerMeshes.values()) {
-      this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+    for (const tv of this.towerVisuals.values()) {
+      this.scene.remove(tv.object);
+      disposeObject3D(tv.object);
     }
-    this.towerMeshes.clear();
+    this.towerVisuals.clear();
     this.towerLogics.clear();
     for (const mesh of this.enemyMeshes.values()) {
       this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+      disposeObject3D(mesh);
     }
     this.enemyMeshes.clear();
-    for (const mesh of this.projectileMeshes) {
-      this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
-    }
-    this.projectileMeshes = [];
+    this._clearProjectileViz();
+    this.effects.dispose();
   }
 }
