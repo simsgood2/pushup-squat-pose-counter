@@ -66,9 +66,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
   scene.fog = new THREE.FogExp2(0x081420, 0.05);
 
   // Image-based lighting from a built-in neutral room (no external HDR asset).
+  // Kept subtle so the character isn't blown out / picked up by bloom.
   const pmrem = new THREE.PMREMGenerator(renderer);
   const roomEnv = new RoomEnvironment();
   scene.environment = pmrem.fromScene(roomEnv, 0.04).texture;
+  scene.environmentIntensity = 0.35;
   pmrem.dispose();
 
   scene.add(buildSky());
@@ -82,12 +84,12 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
   controls.update();
 
   // Cyan/navy tinted ambient fill.
-  const hemiLight = new THREE.HemisphereLight(0x2a4a5e, 0x05070d, 0.55);
+  const hemiLight = new THREE.HemisphereLight(0x2a4a5e, 0x05070d, 0.4);
   hemiLight.position.set(0, 8, 0);
   scene.add(hemiLight);
 
   // Key light with a tight shadow frustum fit to the board.
-  const dirLight = new THREE.DirectionalLight(0xffffff, 2.6);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
   dirLight.position.set(4, 8, 5);
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.set(2048, 2048);
@@ -116,9 +118,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.6,  // strength
-    0.4,  // radius
-    0.85  // threshold (only bright emissives bloom)
+    0.35, // strength (subtle)
+    0.3,  // radius
+    1.1   // threshold (only HDR neon emissives bloom, not the lit character)
   );
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
