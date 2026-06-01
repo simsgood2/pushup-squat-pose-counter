@@ -30,7 +30,6 @@ const { scene, camera, renderer, controls } = initScene(canvas);
 
 // Camera tween system
 const cameraTween = new CameraTween();
-let currentLookAt = new THREE.Vector3(0, 0.85, 0);
 
 let characterGroup: THREE.Group | null = null;
 loadGLTFIntoScene(mannyGlbUrl, scene, {
@@ -108,6 +107,7 @@ grid.setInputEnabled(canBuild(phaseStore.getState().phase));
 let lastPhase = phaseStore.getState().phase;
 let prevShowCharacter = true; // Menu starts with the character visible
 let pendingCharacterReveal = false; // reveal the character only after the camera settles
+let pendingNextRound = false; // after a cleared wave, auto-advance once the camera has returned
 phaseStore.subscribe((state) => {
   exerciseEnabled = state.phase === 'Exercise';
   grid.setInputEnabled(canBuild(state.phase));
@@ -126,7 +126,8 @@ phaseStore.subscribe((state) => {
     : state.phase === 'Menu' || state.phase === 'GameOver' ? 'menu'
     : 'defense';
   const preset = CAMERA_PRESETS[presetKey];
-  cameraTween.begin(camera, currentLookAt, preset);
+  // Start from the *actual* current look (controls.target), so orbiting never causes a jump.
+  cameraTween.begin(camera, controls.target.clone(), preset);
 
   // Visibility: Exercise hides grid; Menu/Exercise/WaveClear/GameOver show the character.
   const showGrid = state.phase !== 'Exercise';
@@ -143,6 +144,9 @@ phaseStore.subscribe((state) => {
     pendingCharacterReveal = false;
   }
   prevShowCharacter = showCharacter;
+
+  // Cleared wave: auto-advance to the next exercise round once the camera has returned.
+  pendingNextRound = state.phase === 'WaveClear';
 
   lastPhase = state.phase;
 });
@@ -167,15 +171,20 @@ function timerLoop(): void {
   // Update camera tween each frame
   const updatedLookAt = cameraTween.update(camera);
   if (updatedLookAt) {
-    currentLookAt.copy(updatedLookAt);
     controls.target.copy(updatedLookAt);
   }
   controls.enabled = !cameraTween.active;
 
-  // Reveal the character once the camera has finished returning.
-  if (pendingCharacterReveal && !cameraTween.active) {
-    if (characterGroup) characterGroup.visible = true;
-    pendingCharacterReveal = false;
+  // Once the camera has finished returning: reveal the character, then auto-advance.
+  if (!cameraTween.active) {
+    if (pendingCharacterReveal) {
+      if (characterGroup) characterGroup.visible = true;
+      pendingCharacterReveal = false;
+    }
+    if (pendingNextRound) {
+      pendingNextRound = false;
+      phaseStore.getState().nextRound();
+    }
   }
 
   requestAnimationFrame(timerLoop);

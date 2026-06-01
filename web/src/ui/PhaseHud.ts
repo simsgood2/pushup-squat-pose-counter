@@ -201,7 +201,8 @@ export class PhaseHud {
     this.costRow.style.display = buildOrDefense ? 'block' : 'none';
     this.startBuildBtn.style.display = state.phase === 'Exercise' ? 'block' : 'none';
     this.startWaveBtn.style.display = state.phase === 'Build' ? 'block' : 'none';
-    this.nextRoundBtn.style.display = state.phase === 'WaveClear' ? 'block' : 'none';
+    // WaveClear auto-advances to the next round (camera returns first), so no manual button.
+    this.nextRoundBtn.style.display = 'none';
   }
 
   dispose(): void {
