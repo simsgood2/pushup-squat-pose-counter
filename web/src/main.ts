@@ -131,6 +131,8 @@ phaseStore.subscribe((state) => {
   // Visibility: Exercise hides grid; Menu/Exercise/WaveClear/GameOver show the character.
   const showGrid = state.phase !== 'Exercise';
   const showCharacter = state.phase === 'Exercise' || state.phase === 'Menu' || state.phase === 'WaveClear' || state.phase === 'GameOver';
+  // Pose inference only matters when the character is shown; pause it during Build/Defense.
+  poseStream.setInferenceEnabled(showCharacter);
   grid.setVisible(showGrid);
   if (showCharacter && !prevShowCharacter) {
     // Summon: keep the character hidden until the camera tween settles.

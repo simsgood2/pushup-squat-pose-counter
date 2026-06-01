@@ -19,12 +19,20 @@ export class PoseStream {
   private rafId: number | null = null;
   private active = false;
   private poseLandmarker: PoseLandmarker | null = null;
+  private inferenceEnabled = true;
+  private targetInterval = 1000 / 30; // throttle pose inference to ~30fps
+  private lastInferenceAt = 0;
 
   subscribe(cb: LandmarkCallback): () => void {
     this.callbacks.add(cb);
     return () => {
       this.callbacks.delete(cb);
     };
+  }
+
+  /** Pause/resume inference without tearing down the camera or model. */
+  setInferenceEnabled(enabled: boolean): void {
+    this.inferenceEnabled = enabled;
   }
 
   async start(modelUrl: string): Promise<void> {
@@ -86,11 +94,14 @@ export class PoseStream {
     if (!this.active) return;
     this.rafId = requestAnimationFrame(() => {
       if (!this.active || !this.video || !this.poseLandmarker) return;
-      if (this.video.readyState >= 2) {
-        const result = this.poseLandmarker.detectForVideo(
-          this.video,
-          performance.now()
-        );
+      const now = performance.now();
+      if (
+        this.inferenceEnabled &&
+        this.video.readyState >= 2 &&
+        now - this.lastInferenceAt >= this.targetInterval
+      ) {
+        this.lastInferenceAt = now;
+        const result = this.poseLandmarker.detectForVideo(this.video, now);
         this.dispatch({
           landmarks: result.landmarks as Landmark3D[][],
           worldLandmarks: result.worldLandmarks as Landmark3D[][],

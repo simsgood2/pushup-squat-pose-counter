@@ -52,8 +52,8 @@ function buildSky(): THREE.Mesh {
 }
 
 export function initScene(canvas: HTMLCanvasElement): SceneContext {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -92,7 +92,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
   dirLight.position.set(4, 8, 5);
   dirLight.castShadow = true;
-  dirLight.shadow.mapSize.set(2048, 2048);
+  dirLight.shadow.mapSize.set(1024, 1024);
   dirLight.shadow.camera.near = 0.5;
   dirLight.shadow.camera.far = 30;
   dirLight.shadow.camera.left = -3;
@@ -116,8 +116,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
   // Post-processing: render -> bloom (neon emissives only) -> tonemap/sRGB output.
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
+  // Bloom blur passes run at half resolution — cheap and visually indistinguishable.
   const bloom = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2),
     0.35, // strength (subtle)
     0.3,  // radius
     1.1   // threshold (only HDR neon emissives bloom, not the lit character)
@@ -138,8 +139,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneContext {
   const onResize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
+    bloom.setSize(window.innerWidth / 2, window.innerHeight / 2);
   };
   window.addEventListener('resize', onResize);
 
