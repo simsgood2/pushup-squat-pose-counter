@@ -1,6 +1,6 @@
 # 모캡 디펜스 게임 리디자인 계획
 
-운동 동작이 3D 캐릭터에 동기화되고 운동으로 모은 골드로 디펜스를 플레이하는 웹 게임. 2026-05-29 기준 MVP는 `web/` 아래 TypeScript + Vite + Three.js 앱.
+운동 동작이 3D 캐릭터에 동기화되고 운동으로 모은 골드로 디펜스를 플레이하는 웹 게임. 2026-05-29 기준 MVP는 레포 루트의 TypeScript + Vite + Three.js 앱 (소스는 `src/`, 원본 Python 포즈 카운터는 `python/`에 보존).
 
 ## 스택
 
@@ -43,7 +43,7 @@
 ## 아키텍처
 
 ```text
-web/src/
+src/
 ├── main.ts                    # 런타임 엔트리, 씬/모캡/HUD/디펜스 연결
 ├── scene.ts                   # renderer, camera, 그라디언트 스카이, RoomEnvironment IBL, fog, 그림자, 블룸 후처리
 ├── mocap/
@@ -134,7 +134,7 @@ web/src/
 - Vitest는 쓰지 않는다.
 - 사용자가 명시적으로 요청할 때만 Playwright로 작성. 플랜에 "테스트 작성" 단계를 기본으로 적지 않음.
 - 테스트를 추가하더라도 `window.__xxx` 훅은 만들지 않는다. 필요하면 정식 모듈 API로 노출.
-- 현재 `web/tests/`는 비어 있음.
+- 현재 `tests/`는 비어 있음.
 
 ## 리스크와 미정
 
