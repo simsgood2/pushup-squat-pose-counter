@@ -150,8 +150,8 @@ export class DefenseGrid {
     scene: THREE.Scene,
     camera: THREE.Camera,
     renderer: THREE.WebGLRenderer,
-    rows = 8,
-    cols = 8,
+    rows = 10,
+    cols = 12,
     cellSize = 0.4
   ) {
     this._state = new GridState(rows, cols, cellSize);

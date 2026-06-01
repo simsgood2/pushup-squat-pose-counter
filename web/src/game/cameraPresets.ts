@@ -11,14 +11,14 @@ export const CAMERA_PRESETS: Record<'exercise' | 'defense' | 'menu', CameraPrese
     position: new THREE.Vector3(0, 1.4, 3.2),
     lookAt:   new THREE.Vector3(0, 1.0, 0),
   },
-  // 디펜스: 그리드 비스듬한 탑다운, 그리드가 화면 대부분을 차지
+  // 디펜스: 그리드 비스듬한 탑다운, 넓어진 보드(12×10)에 맞춰 카메라 후퇴
   defense: {
-    position: new THREE.Vector3(0, 4.5, 4.0),
+    position: new THREE.Vector3(0, 6.4, 5.8),
     lookAt:   new THREE.Vector3(0, 0, 0),
   },
   // 메뉴/WaveClear/GameOver: 디펜스와 유사하지만 약간 다른 각도로 캐릭터도 살짝 보이게
   menu: {
-    position: new THREE.Vector3(0.5, 3.0, 4.0),
+    position: new THREE.Vector3(0.6, 4.0, 5.2),
     lookAt:   new THREE.Vector3(0, 0.8, 0),
   },
 };
