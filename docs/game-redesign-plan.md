@@ -36,13 +36,15 @@
 - UI 다크 시안 통일: CSS 변수 + `.hud-*` 유틸 클래스, 골드 플로팅 텍스트, 라이프 감소 화면 플래시
 - 타워/적 절차적 지오메트리 (box/sphere → 종류별 형태 + emissive 네온 재질, `visuals.ts` 팩토리로 GLB 교체 대비)
 - 투사체 glow 스프라이트 + 페이드 trail, 피격 스파크 / 사망 폭발 링 / 골드 스파클 이펙트 (`effects.ts`)
+- 환경/조명: 그라디언트 스카이, RoomEnvironment IBL, FogExp2, 보드에 맞춘 그림자 frustum
+- 후처리: EffectComposer + UnrealBloomPass(emissive 네온 발광) + OutputPass, ACES 톤매핑
 
 ## 아키텍처
 
 ```text
 web/src/
 ├── main.ts                    # 런타임 엔트리, 씬/모캡/HUD/디펜스 연결
-├── scene.ts                   # Three.js renderer, camera, light, ground
+├── scene.ts                   # renderer, camera, 그라디언트 스카이, RoomEnvironment IBL, fog, 그림자, 블룸 후처리
 ├── mocap/
 │   ├── poseStream.ts          # 현재 사용: 메인 스레드 MediaPipe Pose
 │   └── poseWorker.ts          # 보존, 미사용
@@ -102,10 +104,10 @@ web/src/
 - 피격(스파크) / 사망(폭발 링 + puff) / 골드(상승 스파클) 이펙트 (`effects.ts`)
 - 실제 GLB 에셋 교체는 에셋 확보 후 진행 (visuals.ts 내부만 수정)
 
-### T4.9 환경 / 조명
-- 스카이박스 또는 HDR 환경 맵
-- 디렉셔널 라이트 + 그림자
-- 톤매핑 / 후처리 (블룸 등)
+### ~~T4.9 환경 / 조명~~ ✅
+- 절차적 그라디언트 스카이 + 빌트인 `RoomEnvironment` IBL (외부 HDR 에셋 없이) → 추후 실제 HDR로 교체 가능
+- 디렉셔널 키 라이트 + 보드에 맞춘 타이트한 그림자 frustum (2048, bias 보정)
+- ACES 톤매핑 + `EffectComposer` / `UnrealBloomPass`(threshold 0.85, emissive만 발광) / `OutputPass`
 
 ### 범위 밖 (당장은)
 - VRM 재도입
@@ -137,6 +139,7 @@ web/src/
 ## 리스크와 미정
 
 - **메인 스레드 MediaPipe 성능**: 데스크톱은 충분. 모바일에서 병목 가능 → worker 재도입 보류 중 (MediaPipe Tasks WASM worker 초기화 이슈 해결 필요).
+- **후처리(블룸) 비용**: 데스크톱은 양호. 모바일/저사양에서 프레임 부담 가능 → 필요 시 bloom 해상도/품질 토글 또는 비활성 옵션 검토.
 - **카메라 보정**: 사용자 체형/위치별 운동 인식 안정화 필요. 다리 떨림은 visibility-스케일 슬러프로 부분 완화.
 - **밸런스**: 타워 비용 30 / 라이프 20은 잠정값. 플레이 테스트 후 조정.
 - **캐릭터 리타게팅**: 팔/다리는 됨. 척추/머리/손가락은 미구현.
