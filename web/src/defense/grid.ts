@@ -16,6 +16,10 @@ const PROJECTILE_COLORS: Record<TowerKind, number> = {
 
 const TRAIL_LENGTH = 8;
 
+// Cells of buildable margin between the board edge and the ⊓ path, so towers
+// can be placed on both sides of the road (not just inside it).
+const PATH_MARGIN = 2;
+
 interface ProjectileViz {
   glow: THREE.Sprite;
   core: THREE.Mesh;
@@ -332,29 +336,39 @@ export class DefenseGrid {
   private _buildPath(): { x: number; y: number; z: number }[] {
     const s = this._state;
     const cs = s.cellSize;
-    const bl = s.cellCenter(s.rows - 1, 0);
-    const tl = s.cellCenter(0, 0);
-    const tr = s.cellCenter(0, s.cols - 1);
-    const br = s.cellCenter(s.rows - 1, s.cols - 1);
+    const m = PATH_MARGIN;
+    const upCol = m;
+    const downCol = s.cols - 1 - m;
+    const topRow = m;
+    const botRow = s.rows - 1;
+    const up = s.cellCenter(botRow, upCol);        // bottom of the up-leg
+    const upTop = s.cellCenter(topRow, upCol);     // top-left corner
+    const downTop = s.cellCenter(topRow, downCol); // top-right corner
+    const down = s.cellCenter(botRow, downCol);    // bottom of the down-leg
     return [
-      { x: bl.x, y: 0.1, z: bl.z + cs * 1.5 },  // spawn (outside grid)
-      { x: bl.x, y: 0.1, z: bl.z },               // bottom-left
-      { x: tl.x, y: 0.1, z: tl.z },               // top-left
-      { x: tr.x, y: 0.1, z: tr.z },               // top-right
-      { x: br.x, y: 0.1, z: br.z },               // bottom-right
-      { x: br.x, y: 0.1, z: br.z + cs * 1.5 },   // end (outside grid)
+      { x: up.x, y: 0.1, z: up.z + cs * 1.5 },     // spawn (outside grid)
+      { x: up.x, y: 0.1, z: up.z },
+      { x: upTop.x, y: 0.1, z: upTop.z },
+      { x: downTop.x, y: 0.1, z: downTop.z },
+      { x: down.x, y: 0.1, z: down.z },
+      { x: down.x, y: 0.1, z: down.z + cs * 1.5 }, // end (outside grid)
     ];
   }
 
   private _markPathCells(): void {
     const { rows, cols } = this._state;
+    const m = PATH_MARGIN;
+    const upCol = m;
+    const downCol = cols - 1 - m;
+    const topRow = m;
+    const botRow = rows - 1;
     this._pathCells.clear();
-    for (let r = 0; r < rows; r++) {
-      this._pathCells.add(`${r},0`);
-      this._pathCells.add(`${r},${cols - 1}`);
+    for (let r = topRow; r <= botRow; r++) {
+      this._pathCells.add(`${r},${upCol}`);
+      this._pathCells.add(`${r},${downCol}`);
     }
-    for (let c = 0; c < cols; c++) {
-      this._pathCells.add(`0,${c}`);
+    for (let c = upCol; c <= downCol; c++) {
+      this._pathCells.add(`${topRow},${c}`);
     }
   }
 
@@ -369,27 +383,23 @@ export class DefenseGrid {
     const sx = -totalW / 2;
     const sz = -totalH / 2;
 
-    // Buildable region = solid rectangle of non-path cells (interior).
-    const c0 = 1;
-    const c1 = cols - 2; // inclusive cols
-    const r0 = 1;
-    const r1 = rows - 1; // inclusive rows
-    const xLeft = sx + c0 * cellSize;
-    const xRight = sx + (c1 + 1) * cellSize;
-    const zTop = sz + r0 * cellSize;
-    const zBottom = sz + (r1 + 1) * cellSize;
+    // Buildable = whole board except the path cells; road is drawn on top.
+    const xLeft = sx;
+    const xRight = sx + totalW;
+    const zTop = sz;
+    const zBottom = sz + totalH;
 
-    // Faint panel under the build zone so it reads as the placement surface.
-    const panelGeo = new THREE.PlaneGeometry(xRight - xLeft, zBottom - zTop);
+    // Faint panel across the whole board so it reads as the placement surface.
+    const panelGeo = new THREE.PlaneGeometry(totalW, totalH);
     panelGeo.rotateX(-Math.PI / 2);
     const panelMat = new THREE.MeshBasicMaterial({ color: COLORS.buildPanel, transparent: true, opacity: 0.35 });
     const panel = new THREE.Mesh(panelGeo, panelMat);
-    panel.position.set((xLeft + xRight) / 2, 0.004, (zTop + zBottom) / 2);
+    panel.position.set(0, 0.004, 0);
     this.gridGroup.add(panel);
 
-    // Faint grid lines over the build zone only.
+    // Faint grid lines across the whole board.
     const gridMat = new THREE.LineBasicMaterial({ color: COLORS.buildGrid, transparent: true, opacity: 0.5 });
-    for (let r = r0; r <= r1 + 1; r++) {
+    for (let r = 0; r <= rows; r++) {
       const z = sz + r * cellSize;
       const geo = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(xLeft, 0.006, z),
@@ -397,7 +407,7 @@ export class DefenseGrid {
       ]);
       this.gridGroup.add(new THREE.Line(geo, gridMat));
     }
-    for (let c = c0; c <= c1 + 1; c++) {
+    for (let c = 0; c <= cols; c++) {
       const x = sx + c * cellSize;
       const geo = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(x, 0.006, zTop),
@@ -406,7 +416,7 @@ export class DefenseGrid {
       this.gridGroup.add(new THREE.Line(geo, gridMat));
     }
 
-    // Continuous road ribbon along the enemy path (no per-cell tiles).
+    // Continuous road ribbon over the path (drawn above the grid).
     this._buildRoad();
 
     // Spawn marker (cyan cylinder at first path point)
@@ -438,13 +448,13 @@ export class DefenseGrid {
     for (let i = 0; i < this._path.length - 1; i++) {
       const a = this._path[i];
       const b = this._path[i + 1];
-      this._addRoadSegment(a, b, rw + 0.1, glowMat, 0.0045); // soft glowing shoulder
-      this._addRoadSegment(a, b, rw, roadMat, 0.006);        // road body
+      this._addRoadSegment(a, b, rw + 0.1, glowMat, 0.007); // soft glowing shoulder
+      this._addRoadSegment(a, b, rw, roadMat, 0.009);       // road body (above grid)
     }
 
     // Glowing centerline conveys the travel direction.
     const centerGeo = new THREE.BufferGeometry().setFromPoints(
-      this._path.map((p) => new THREE.Vector3(p.x, 0.0075, p.z))
+      this._path.map((p) => new THREE.Vector3(p.x, 0.011, p.z))
     );
     const centerMat = new THREE.LineBasicMaterial({ color: COLORS.pathGlow, transparent: true, opacity: 0.45 });
     this.gridGroup.add(new THREE.Line(centerGeo, centerMat));

@@ -31,6 +31,16 @@ export function spawnExerciseFloat(
   setTimeout(() => el.remove(), 1600);
 }
 
+/** Big centered text that sweeps across the screen on a phase change. */
+export function spawnPhaseBanner(text: string): void {
+  document.querySelectorAll('.phase-banner').forEach((e) => e.remove());
+  const el = document.createElement('div');
+  el.className = 'phase-banner';
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1600);
+}
+
 export function flashLifeLoss(): void {
   const el = document.createElement('div');
   el.style.cssText = `position: fixed; inset: 0; background: var(--warn);

@@ -19,7 +19,7 @@ import { phaseStore } from './game/phaseMachine';
 import { TowerPanel } from './ui/TowerPanel';
 import { CameraTween } from './game/cameraTween';
 import { CAMERA_PRESETS } from './game/cameraPresets';
-import { flashLifeLoss, spawnExerciseFloat } from './ui/feedback';
+import { flashLifeLoss, spawnExerciseFloat, spawnPhaseBanner } from './ui/feedback';
 
 interface AnyClassifier {
   update(lm: (Point3D | null)[]): ExerciseState;
@@ -104,11 +104,22 @@ const canBuild = (p: string) => p === 'Build' || p === 'Defense';
 exerciseEnabled = phaseStore.getState().phase === 'Exercise';
 grid.setInputEnabled(canBuild(phaseStore.getState().phase));
 
+const PHASE_BANNERS: Record<string, string> = {
+  Exercise: '운동',
+  Build: '건설',
+  Defense: '방어',
+  WaveClear: '클리어!',
+};
+
 let lastPhase = phaseStore.getState().phase;
 let prevShowCharacter = true; // Menu starts with the character visible
 let pendingCharacterReveal = false; // reveal the character only after the camera settles
 let pendingNextRound = false; // after a cleared wave, auto-advance once the camera has returned
 phaseStore.subscribe((state) => {
+  if (state.phase !== lastPhase) {
+    const banner = PHASE_BANNERS[state.phase];
+    if (banner) spawnPhaseBanner(banner);
+  }
   exerciseEnabled = state.phase === 'Exercise';
   grid.setInputEnabled(canBuild(state.phase));
   if (state.phase === 'Defense' && lastPhase !== 'Defense') {
