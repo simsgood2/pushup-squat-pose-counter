@@ -33,6 +33,8 @@ const COLORS = {
   gridLineHi:  0x33ffd1,
   pathBase:    0x0a1e26,
   pathGlow:    0x00ffd1,
+  buildPanel:  0x0a1822,
+  buildGrid:   0x2a5c66,
   textBase:    0xe6f1ff,
   textDim:     0x7d92b0,
 };
@@ -367,53 +369,45 @@ export class DefenseGrid {
     const sx = -totalW / 2;
     const sz = -totalH / 2;
 
-    // Grid lines
-    const mat = new THREE.LineBasicMaterial({ color: COLORS.gridLine, opacity: 0.5, transparent: true });
-    for (let r = 0; r <= rows; r++) {
+    // Buildable region = solid rectangle of non-path cells (interior).
+    const c0 = 1;
+    const c1 = cols - 2; // inclusive cols
+    const r0 = 1;
+    const r1 = rows - 1; // inclusive rows
+    const xLeft = sx + c0 * cellSize;
+    const xRight = sx + (c1 + 1) * cellSize;
+    const zTop = sz + r0 * cellSize;
+    const zBottom = sz + (r1 + 1) * cellSize;
+
+    // Faint panel under the build zone so it reads as the placement surface.
+    const panelGeo = new THREE.PlaneGeometry(xRight - xLeft, zBottom - zTop);
+    panelGeo.rotateX(-Math.PI / 2);
+    const panelMat = new THREE.MeshBasicMaterial({ color: COLORS.buildPanel, transparent: true, opacity: 0.35 });
+    const panel = new THREE.Mesh(panelGeo, panelMat);
+    panel.position.set((xLeft + xRight) / 2, 0.004, (zTop + zBottom) / 2);
+    this.gridGroup.add(panel);
+
+    // Faint grid lines over the build zone only.
+    const gridMat = new THREE.LineBasicMaterial({ color: COLORS.buildGrid, transparent: true, opacity: 0.5 });
+    for (let r = r0; r <= r1 + 1; r++) {
       const z = sz + r * cellSize;
       const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(sx, 0.01, z),
-        new THREE.Vector3(sx + totalW, 0.01, z),
+        new THREE.Vector3(xLeft, 0.006, z),
+        new THREE.Vector3(xRight, 0.006, z),
       ]);
-      this.gridGroup.add(new THREE.Line(geo, mat));
+      this.gridGroup.add(new THREE.Line(geo, gridMat));
     }
-    for (let c = 0; c <= cols; c++) {
+    for (let c = c0; c <= c1 + 1; c++) {
       const x = sx + c * cellSize;
       const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(x, 0.01, sz),
-        new THREE.Vector3(x, 0.01, sz + totalH),
+        new THREE.Vector3(x, 0.006, zTop),
+        new THREE.Vector3(x, 0.006, zBottom),
       ]);
-      this.gridGroup.add(new THREE.Line(geo, mat));
+      this.gridGroup.add(new THREE.Line(geo, gridMat));
     }
 
-    // Path floor tiles (dark cyan base)
-    const pathMat = new THREE.MeshBasicMaterial({ color: COLORS.pathBase, transparent: true, opacity: 0.85 });
-    for (const key of this._pathCells) {
-      const [r, c] = key.split(',').map(Number);
-      const center = this._state.cellCenter(r, c);
-      const geo = new THREE.PlaneGeometry(cellSize, cellSize);
-      geo.rotateX(-Math.PI / 2);
-      const mesh = new THREE.Mesh(geo, pathMat);
-      mesh.position.set(center.x, 0.005, center.z);
-      this.gridGroup.add(mesh);
-    }
-
-    // Path outline (glow edges)
-    const pathOutlineMat = new THREE.LineBasicMaterial({ color: COLORS.pathGlow, transparent: true, opacity: 0.6 });
-    for (const key of this._pathCells) {
-      const [r, c] = key.split(',').map(Number);
-      const center = this._state.cellCenter(r, c);
-      const half = cellSize / 2;
-      const points = [
-        new THREE.Vector3(center.x - half, 0.006, center.z - half),
-        new THREE.Vector3(center.x + half, 0.006, center.z - half),
-        new THREE.Vector3(center.x + half, 0.006, center.z + half),
-        new THREE.Vector3(center.x - half, 0.006, center.z + half),
-        new THREE.Vector3(center.x - half, 0.006, center.z - half),
-      ];
-      const geo = new THREE.BufferGeometry().setFromPoints(points);
-      this.gridGroup.add(new THREE.Line(geo, pathOutlineMat));
-    }
+    // Continuous road ribbon along the enemy path (no per-cell tiles).
+    this._buildRoad();
 
     // Spawn marker (cyan cylinder at first path point)
     const spawn = this._path[0];
@@ -430,6 +424,51 @@ export class DefenseGrid {
     this._endMarkerMesh = new THREE.Mesh(endGeo, endMat);
     this._endMarkerMesh.position.set(end.x, 0.015, end.z);
     this.gridGroup.add(this._endMarkerMesh);
+  }
+
+  /** Continuous glowing road ribbon following the enemy path polyline. */
+  private _buildRoad(): void {
+    const rw = this._state.cellSize * 0.82;
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: COLORS.pathGlow, transparent: true, opacity: 0.16,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const roadMat = new THREE.MeshBasicMaterial({ color: COLORS.pathBase, transparent: true, opacity: 0.92 });
+
+    for (let i = 0; i < this._path.length - 1; i++) {
+      const a = this._path[i];
+      const b = this._path[i + 1];
+      this._addRoadSegment(a, b, rw + 0.1, glowMat, 0.0045); // soft glowing shoulder
+      this._addRoadSegment(a, b, rw, roadMat, 0.006);        // road body
+    }
+
+    // Glowing centerline conveys the travel direction.
+    const centerGeo = new THREE.BufferGeometry().setFromPoints(
+      this._path.map((p) => new THREE.Vector3(p.x, 0.0075, p.z))
+    );
+    const centerMat = new THREE.LineBasicMaterial({ color: COLORS.pathGlow, transparent: true, opacity: 0.45 });
+    this.gridGroup.add(new THREE.Line(centerGeo, centerMat));
+  }
+
+  /** Adds one axis-aligned road quad, extended by `width` to fill corners. */
+  private _addRoadSegment(
+    a: { x: number; z: number },
+    b: { x: number; z: number },
+    width: number,
+    mat: THREE.Material,
+    y: number
+  ): void {
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const len = Math.hypot(dx, dz);
+    const horizontal = Math.abs(dx) > Math.abs(dz);
+    const w = horizontal ? len + width : width;
+    const h = horizontal ? width : len + width;
+    const geo = new THREE.PlaneGeometry(w, h);
+    geo.rotateX(-Math.PI / 2);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set((a.x + b.x) / 2, y, (a.z + b.z) / 2);
+    this.gridGroup.add(mesh);
   }
 
   private _spawnTowerMesh(row: number, col: number, kind: TowerKind): void {
