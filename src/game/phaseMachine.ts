@@ -14,12 +14,14 @@ export interface PhaseState {
   start: () => void;
   exerciseTimeout: () => void;
   startBuild: () => void;
+  returnToExercise: () => void;
   startWave: () => void;
   waveCleared: () => void;
   gameOver: () => void;
   loseLife: () => void;
   nextRound: () => void;
   setPhase: (p: Phase) => void;
+  resetTimer: () => void;
   tickTimer: (dt: number) => void;
   restart: () => void;
 }
@@ -41,8 +43,13 @@ export const phaseStore = createStore<PhaseState>()((set, get) => ({
   },
 
   startBuild: () => {
-    if (get().phase !== 'Exercise') return;
+    if (get().phase !== 'Exercise' && get().phase !== 'Build') return;
     set({ phase: 'Build' });
+  },
+
+  returnToExercise: () => {
+    if (get().phase !== 'Build') return;
+    set({ phase: 'Exercise', exerciseTimeLeft: EXERCISE_DURATION });
   },
 
   startWave: () => {
@@ -79,6 +86,12 @@ export const phaseStore = createStore<PhaseState>()((set, get) => ({
 
   setPhase: (p: Phase) => set({ phase: p }),
 
+  resetTimer: () => {
+    const phase = get().phase;
+    if (phase !== 'Exercise' && phase !== 'Build') return;
+    set({ exerciseTimeLeft: EXERCISE_DURATION });
+  },
+
   restart: () => {
     goldStore.getState().reset();
     set({ phase: 'Menu', round: 1, exerciseTimeLeft: EXERCISE_DURATION, lives: INITIAL_LIVES });
@@ -86,7 +99,7 @@ export const phaseStore = createStore<PhaseState>()((set, get) => ({
 
   tickTimer: (dt: number) => {
     const s = get();
-    if (s.phase !== 'Exercise') return;
+    if (s.phase !== 'Exercise' && s.phase !== 'Build') return;
     if (s.exerciseTimeLeft <= 0) return;
     const next = Math.max(0, s.exerciseTimeLeft - dt);
     set({ exerciseTimeLeft: next });

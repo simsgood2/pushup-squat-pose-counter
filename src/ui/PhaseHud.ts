@@ -5,11 +5,14 @@ import { goldStore } from '../exercise/rewards';
 export class PhaseHud {
   private menuOverlay: HTMLDivElement;
   private hudBar: HTMLDivElement;
+  private statsStack: HTMLDivElement;
   private phaseEl: HTMLSpanElement;
   private roundEl: HTMLSpanElement;
-  private timerEl: HTMLSpanElement;
-  private timerRow: HTMLDivElement;
+  private centerTimerEl: HTMLDivElement;
+  private centerTimerTextEl: HTMLSpanElement;
   private startBuildBtn: HTMLButtonElement;
+  private returnExerciseBtn: HTMLButtonElement;
+  private resetTimerBtn: HTMLButtonElement;
   private startWaveBtn: HTMLButtonElement;
   private nextRoundBtn: HTMLButtonElement;
   private gameOverOverlay: HTMLDivElement;
@@ -34,85 +37,77 @@ export class PhaseHud {
       'right: 16px',
       'pointer-events: none',
       'z-index: 100',
-      'min-width: 140px',
-      'font-size: 15px',
+      'min-width: 180px',
+      'font-size: 30px',
     ].join('; ');
 
     this.phaseEl = this._span('phase-label');
     this.roundEl = this._span('round-label');
-    this.timerEl = this._span('timer-label');
 
-    this.timerRow = document.createElement('div');
-    this.timerRow.style.marginBottom = '4px';
-    const timerLbl = document.createElement('span');
-    timerLbl.textContent = '남은 시간: ';
-    timerLbl.className = 'hud-label-dim';
-    this.timerRow.appendChild(timerLbl);
-    this.timerRow.appendChild(this.timerEl);
+    this.centerTimerEl = document.createElement('div');
+    this.centerTimerEl.setAttribute('data-testid', 'center-timer-label');
+    this.centerTimerEl.className = 'hud-panel';
+    this.centerTimerEl.style.cssText = [
+      'position: fixed',
+      'top: 16px',
+      'left: 50%',
+      'transform: translateX(-50%)',
+      'z-index: 110',
+      'font-size: 36px',
+      'line-height: 1.5',
+      'display: none',
+      'align-items: center',
+      'gap: 16px',
+    ].join('; ');
+    this.centerTimerTextEl = document.createElement('span');
+    this.centerTimerEl.appendChild(this.centerTimerTextEl);
 
-    this.startBuildBtn = document.createElement('button');
-    this.startBuildBtn.setAttribute('data-testid', 'start-build-btn');
-    this.startBuildBtn.className = 'hud-btn';
-    this.startBuildBtn.textContent = '건설 시작';
-    this.startBuildBtn.style.cssText = 'margin-top: 8px; pointer-events: all; display: block;';
-    this.startBuildBtn.addEventListener('click', () => phaseStore.getState().startBuild());
+    this.startBuildBtn = this._button('start-build-btn', '건설 시작', () => phaseStore.getState().startBuild());
+    this.returnExerciseBtn = this._button('return-exercise-btn', '운동 다시 하기', () => phaseStore.getState().returnToExercise());
+    this.resetTimerBtn = this._button('reset-timer-btn', '시간 초기화', () => phaseStore.getState().resetTimer());
+    this.resetTimerBtn.style.marginTop = '0';
+    this.resetTimerBtn.style.fontSize = '24px';
+    this.resetTimerBtn.style.whiteSpace = 'nowrap';
+    this.centerTimerEl.appendChild(this.resetTimerBtn);
 
-    this.startWaveBtn = document.createElement('button');
-    this.startWaveBtn.setAttribute('data-testid', 'start-wave-btn');
-    this.startWaveBtn.className = 'hud-btn';
-    this.startWaveBtn.textContent = '웨이브 시작';
-    this.startWaveBtn.style.cssText = 'margin-top: 8px; pointer-events: all; display: block;';
-    this.startWaveBtn.addEventListener('click', () => phaseStore.getState().startWave());
-
-    this.nextRoundBtn = document.createElement('button');
-    this.nextRoundBtn.setAttribute('data-testid', 'next-round-btn');
-    this.nextRoundBtn.className = 'hud-btn';
-    this.nextRoundBtn.textContent = '다음 라운드';
-    this.nextRoundBtn.style.cssText = 'margin-top: 8px; pointer-events: all; display: block;';
-    this.nextRoundBtn.addEventListener('click', () => phaseStore.getState().nextRound());
+    this.startWaveBtn = this._button('start-wave-btn', '웨이브 시작', () => phaseStore.getState().startWave());
+    this.nextRoundBtn = this._button('next-round-btn', '다음 라운드', () => phaseStore.getState().nextRound());
 
     this.livesEl = this._span('lives-label');
     this.livesEl.textContent = String(INITIAL_LIVES);
-
-    this.livesRow = document.createElement('div');
-    this.livesRow.style.marginBottom = '4px';
-    const livesLbl = document.createElement('span');
-    livesLbl.textContent = '라이프: ';
-    livesLbl.className = 'hud-label-dim';
-    this.livesRow.appendChild(livesLbl);
-    this.livesRow.appendChild(this.livesEl);
-
-    this.costRow = document.createElement('div');
-    this.costRow.style.marginBottom = '4px';
-    const costLbl = document.createElement('span');
-    costLbl.textContent = '타워 비용: ';
-    costLbl.className = 'hud-label-dim';
-    const costVal = document.createElement('span');
-    costVal.setAttribute('data-testid', 'tower-cost-label');
-    costVal.textContent = String(TOWER_CONFIGS.basic.cost);
-    this.costRow.appendChild(costLbl);
-    this.costRow.appendChild(costVal);
+    this.livesRow = this._statBox('라이프', this.livesEl);
 
     this.goldEl = this._span('hud-gold-label');
     this.goldEl.textContent = '0';
-    this.goldRow = document.createElement('div');
-    this.goldRow.style.marginBottom = '4px';
-    const goldLbl = document.createElement('span');
-    goldLbl.textContent = '골드: ';
-    goldLbl.className = 'hud-label-dim';
-    this.goldRow.appendChild(goldLbl);
-    this.goldRow.appendChild(this.goldEl);
+    this.goldRow = this._statBox('골드', this.goldEl);
+
+    this.statsStack = document.createElement('div');
+    this.statsStack.style.cssText = [
+      'position: fixed',
+      'top: 16px',
+      'right: 318px',
+      'display: flex',
+      'flex-direction: column',
+      'gap: 12px',
+      'z-index: 100',
+      'font-size: 30px',
+      'pointer-events: none',
+    ].join('; ');
+    this.statsStack.appendChild(this.livesRow);
+    this.statsStack.appendChild(this.goldRow);
+
+    this.costRow = this._statBox('타워 비용', this._plainSpan(String(TOWER_CONFIGS.basic.cost), 'tower-cost-label'));
 
     this.hudBar.appendChild(this._row('페이즈', this.phaseEl));
     this.hudBar.appendChild(this._row('라운드', this.roundEl));
-    this.hudBar.appendChild(this.timerRow);
-    this.hudBar.appendChild(this.livesRow);
-    this.hudBar.appendChild(this.goldRow);
     this.hudBar.appendChild(this.costRow);
     this.hudBar.appendChild(this.startBuildBtn);
+    this.hudBar.appendChild(this.returnExerciseBtn);
     this.hudBar.appendChild(this.startWaveBtn);
     this.hudBar.appendChild(this.nextRoundBtn);
     document.body.appendChild(this.hudBar);
+    document.body.appendChild(this.statsStack);
+    document.body.appendChild(this.centerTimerEl);
 
     this.gameOverOverlay = this._buildGameOverOverlay();
     document.body.appendChild(this.gameOverOverlay);
@@ -166,9 +161,25 @@ export class PhaseHud {
     return overlay;
   }
 
+  private _button(testid: string, text: string, onClick: () => void): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.setAttribute('data-testid', testid);
+    btn.className = 'hud-btn';
+    btn.textContent = text;
+    btn.style.cssText = 'margin-top: 8px; pointer-events: all; display: block;';
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
   private _span(testid: string): HTMLSpanElement {
     const el = document.createElement('span');
     el.setAttribute('data-testid', testid);
+    return el;
+  }
+
+  private _plainSpan(text: string, testid: string): HTMLSpanElement {
+    const el = this._span(testid);
+    el.textContent = text;
     return el;
   }
 
@@ -183,25 +194,40 @@ export class PhaseHud {
     return row;
   }
 
+  private _statBox(label: string, valueEl: HTMLSpanElement): HTMLDivElement {
+    const box = document.createElement('div');
+    box.className = 'hud-panel';
+    box.style.marginBottom = '0';
+    const lbl = document.createElement('span');
+    lbl.textContent = label + ': ';
+    lbl.className = 'hud-label-dim';
+    box.appendChild(lbl);
+    box.appendChild(valueEl);
+    return box;
+  }
+
   private _render(state: { phase: Phase; round: number; exerciseTimeLeft: number; lives: number }): void {
     this.phaseEl.textContent = state.phase;
     this.roundEl.textContent = String(state.round);
-    this.timerEl.textContent = Math.ceil(state.exerciseTimeLeft) + 's';
+    this.centerTimerTextEl.textContent = `남은 시간: ${Math.ceil(state.exerciseTimeLeft)}s`;
     this.livesEl.textContent = String(state.lives);
+
+    const buildOrDefense = state.phase === 'Build' || state.phase === 'Defense';
+    const showGold = state.phase === 'Exercise' || buildOrDefense || state.phase === 'WaveClear';
+    const showTimer = state.phase === 'Exercise' || state.phase === 'Build';
 
     this.menuOverlay.style.display = state.phase === 'Menu' ? 'flex' : 'none';
     this.gameOverOverlay.style.display = state.phase === 'GameOver' ? 'flex' : 'none';
     this.hudBar.style.display = state.phase === 'Menu' ? 'none' : 'block';
+    this.statsStack.style.display = state.phase === 'Menu' ? 'none' : 'flex';
 
-    const buildOrDefense = state.phase === 'Build' || state.phase === 'Defense';
-    const showGold = state.phase === 'Exercise' || buildOrDefense || state.phase === 'WaveClear';
-    this.timerRow.style.display = state.phase === 'Exercise' ? 'block' : 'none';
+    this.centerTimerEl.style.display = showTimer ? 'flex' : 'none';
     this.livesRow.style.display = buildOrDefense ? 'block' : 'none';
     this.goldRow.style.display = showGold ? 'block' : 'none';
     this.costRow.style.display = buildOrDefense ? 'block' : 'none';
     this.startBuildBtn.style.display = state.phase === 'Exercise' ? 'block' : 'none';
+    this.returnExerciseBtn.style.display = state.phase === 'Build' ? 'block' : 'none';
     this.startWaveBtn.style.display = state.phase === 'Build' ? 'block' : 'none';
-    // WaveClear auto-advances to the next round (camera returns first), so no manual button.
     this.nextRoundBtn.style.display = 'none';
   }
 
@@ -210,6 +236,8 @@ export class PhaseHud {
     this.unsubscribeGold();
     this.menuOverlay.remove();
     this.hudBar.remove();
+    this.statsStack.remove();
+    this.centerTimerEl.remove();
     this.gameOverOverlay.remove();
   }
 }

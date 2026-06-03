@@ -20,12 +20,12 @@ export class TowerPanel {
     this.unsubscribeGold = goldStore.subscribe(() => this._updateCardStates());
     this.unsubscribeSelection = towerSelectionStore.subscribe(() => this._updateCardStates());
     this.unsubscribePhase = phaseStore.subscribe((state) => {
-      const show = state.phase === 'Build' || state.phase === 'Defense';
+      const show = state.phase === 'Exercise' || state.phase === 'Build' || state.phase === 'Defense';
       this.panel.style.display = show ? 'flex' : 'none';
     });
 
     const phase = phaseStore.getState().phase;
-    this.panel.style.display = (phase === 'Build' || phase === 'Defense') ? 'flex' : 'none';
+    this.panel.style.display = (phase === 'Exercise' || phase === 'Build' || phase === 'Defense') ? 'flex' : 'none';
     this._updateCardStates();
   }
 
@@ -39,7 +39,7 @@ export class TowerPanel {
       'transform: translateY(-50%)',
       'display: flex',
       'flex-direction: column',
-      'gap: 8px',
+      'gap: 12px',
       'z-index: 100',
       'pointer-events: none',
     ].join('; ');
@@ -61,13 +61,13 @@ export class TowerPanel {
       'background: rgba(0,0,0,0.78)',
       'color: #fff',
       'font-family: monospace',
-      'font-size: 13px',
-      'padding: 10px 14px',
+      'font-size: 26px',
+      'padding: 16px 22px',
       'border-radius: 8px',
       'border: 2px solid transparent',
       'cursor: pointer',
       'pointer-events: all',
-      'min-width: 130px',
+      'min-width: 260px',
       'user-select: none',
       'transition: box-shadow 0.15s, border-color 0.15s;',
     ].join('; ');

@@ -94,6 +94,13 @@ export class GridState {
     return true;
   }
 
+  vacate(row: number, col: number): boolean {
+    if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return false;
+    if (!this._cells[row][col].hasTower) return false;
+    this._cells[row][col].hasTower = false;
+    return true;
+  }
+
   clearTowers(): void {
     for (const row of this._cells) {
       for (const cell of row) {
@@ -141,8 +148,10 @@ export class DefenseGrid {
   private _rangeRingMesh: THREE.Mesh;
   private _splashRingMesh: THREE.Mesh;
   private _hoverCellMesh: THREE.Mesh;
+  private _selectedCellMesh: THREE.Mesh;
   private _spawnMarkerMesh: THREE.Mesh;
   private _endMarkerMesh: THREE.Mesh;
+  private _selectedTowerKey: string | null = null;
   onWaveComplete: (() => void) | null = null;
   onEnemyReachedEnd: (() => void) | null = null;
 
@@ -170,6 +179,7 @@ export class DefenseGrid {
     this._splashRingMesh = this._makeRingMesh(0xff8844, 0.3);
 
     this._hoverCellMesh = this._makeHoverCellMesh();
+    this._selectedCellMesh = this._makeHoverCellMesh();
     this._spawnMarkerMesh = new THREE.Mesh();
     this._endMarkerMesh = new THREE.Mesh();
 
@@ -293,6 +303,38 @@ export class DefenseGrid {
     return true;
   }
 
+  moveTower(fromRow: number, fromCol: number, toRow: number, toCol: number): boolean {
+    const fromKey = `${fromRow},${fromCol}`;
+    const toKey = `${toRow},${toCol}`;
+    if (fromKey === toKey) return false;
+    if (!this._state.isOccupied(fromRow, fromCol)) return false;
+    if (this._isPathCell(toRow, toCol)) return false;
+    if (this._state.isOccupied(toRow, toCol)) return false;
+
+    const logic = this.towerLogics.get(fromKey);
+    const visual = this.towerVisuals.get(fromKey);
+    if (!logic || !visual) return false;
+
+    const kind = logic.config.kind;
+    this.scene.remove(visual.object);
+    disposeObject3D(visual.object);
+    this.towerVisuals.delete(fromKey);
+    this.towerLogics.delete(fromKey);
+    this._state.vacate(fromRow, fromCol);
+
+    if (!this._state.occupy(toRow, toCol)) {
+      this._state.occupy(fromRow, fromCol);
+      this._spawnTowerMesh(fromRow, fromCol, kind);
+      this._spawnTowerLogic(fromRow, fromCol, kind);
+      return false;
+    }
+
+    this._spawnTowerMesh(toRow, toCol, kind);
+    this._spawnTowerLogic(toRow, toCol, kind);
+    this._hideSelectedTower();
+    return true;
+  }
+
   startWave(): void {
     for (const mesh of this.enemyMeshes.values()) {
       this.scene.remove(mesh);
@@ -326,6 +368,7 @@ export class DefenseGrid {
     this.effects.clear();
 
     this._state.clearTowers();
+    this._hideSelectedTower();
     this.waveStarted = false;
     this._waveCompleteFired = false;
     this._lastReachedEndCount = 0;
@@ -707,12 +750,31 @@ export class DefenseGrid {
     if (!raycaster.ray.intersectPlane(this.groundPlane, hitPoint)) return;
     const cellCoord = this._state.worldToCell(hitPoint.x, hitPoint.z);
     if (!cellCoord) return;
+    const clickedKey = `${cellCoord.row},${cellCoord.col}`;
+
+    if (this._state.isOccupied(cellCoord.row, cellCoord.col)) {
+      if (this._selectedTowerKey === clickedKey) {
+        this._hideSelectedTower();
+      } else {
+        this._selectTower(cellCoord.row, cellCoord.col);
+      }
+      return;
+    }
+
+    if (this._selectedTowerKey) {
+      const [fromRow, fromCol] = this._selectedTowerKey.split(',').map(Number);
+      if (this.moveTower(fromRow, fromCol, cellCoord.row, cellCoord.col)) {
+        this._hideSelectedTower();
+      }
+      return;
+    }
+
     this.placeTowerAt(cellCoord.row, cellCoord.col);
   }
 
   private _handleMousemove(event: MouseEvent): void {
     const phase = phaseStore.getState().phase;
-    if (phase !== 'Build' && phase !== 'Defense') {
+    if (phase !== 'Exercise' && phase !== 'Build' && phase !== 'Defense') {
       this.hideRangePreview();
       this._hoverCellMesh.visible = false;
       return;
@@ -741,11 +803,16 @@ export class DefenseGrid {
     // Hover cell highlighting
     const isPath = this._isPathCell(cellCoord.row, cellCoord.col);
     const isOccupied = this._state.isOccupied(cellCoord.row, cellCoord.col);
-    const shouldHighlight = !isPath && !isOccupied;
+    const hoveredKey = `${cellCoord.row},${cellCoord.col}`;
+    const isSelectedTower = hoveredKey === this._selectedTowerKey;
+    const shouldHighlight = (!isPath && !isOccupied) || isSelectedTower;
 
     this._hoverCellMesh.position.set(center.x, 0.008, center.z);
     this._hoverCellMesh.scale.set(this._state.cellSize, 1, this._state.cellSize);
-    if (shouldHighlight) {
+    if (isSelectedTower) {
+      (this._hoverCellMesh.material as THREE.MeshBasicMaterial).color.setHex(COLORS.accentCyan);
+      (this._hoverCellMesh.material as THREE.MeshBasicMaterial).opacity = 0.5;
+    } else if (shouldHighlight) {
       (this._hoverCellMesh.material as THREE.MeshBasicMaterial).color.setHex(COLORS.gridLineHi);
       (this._hoverCellMesh.material as THREE.MeshBasicMaterial).opacity = 0.35;
     } else if (isPath || isOccupied) {
@@ -753,6 +820,21 @@ export class DefenseGrid {
       (this._hoverCellMesh.material as THREE.MeshBasicMaterial).opacity = 0.35;
     }
     this._hoverCellMesh.visible = true;
+  }
+
+  private _selectTower(row: number, col: number): void {
+    this._selectedTowerKey = `${row},${col}`;
+    const center = this._state.cellCenter(row, col);
+    this._selectedCellMesh.position.set(center.x, 0.012, center.z);
+    this._selectedCellMesh.scale.set(this._state.cellSize, 1, this._state.cellSize);
+    (this._selectedCellMesh.material as THREE.MeshBasicMaterial).color.setHex(COLORS.accentCyan);
+    (this._selectedCellMesh.material as THREE.MeshBasicMaterial).opacity = 0.55;
+    this._selectedCellMesh.visible = true;
+  }
+
+  private _hideSelectedTower(): void {
+    this._selectedTowerKey = null;
+    this._selectedCellMesh.visible = false;
   }
 
   dispose(): void {
@@ -763,8 +845,11 @@ export class DefenseGrid {
     this.scene.remove(this._rangeRingMesh);
     this.scene.remove(this._splashRingMesh);
     this.scene.remove(this._hoverCellMesh);
+    this.scene.remove(this._selectedCellMesh);
     this._hoverCellMesh.geometry.dispose();
     (this._hoverCellMesh.material as THREE.Material).dispose();
+    this._selectedCellMesh.geometry.dispose();
+    (this._selectedCellMesh.material as THREE.Material).dispose();
     for (const tv of this.towerVisuals.values()) {
       this.scene.remove(tv.object);
       disposeObject3D(tv.object);

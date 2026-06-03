@@ -46,7 +46,7 @@ export class PoseStream {
     this.video.playsInline = true;
     this.video.muted = true;
     this.video.style.cssText =
-      'position:fixed;bottom:8px;right:8px;width:160px;border:1px solid #444;z-index:9999;transform:scaleX(-1);';
+      'position:fixed;bottom:8px;right:8px;width:320px;border:1px solid #444;z-index:9999;transform:scaleX(-1);';
     document.body.appendChild(this.video);
     await this.video.play();
 
