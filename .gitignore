@@ -1,22 +1,29 @@
-# Node / web app
-node_modules/
-dist/
-.vite/
-coverage/
-test-results/
-playwright-report/
-*.local
-
-# Python (python/)
+# Python
 venv/
 .venv/
+env/
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 records/
 
+# Local config / secrets
+.env
+.env.*
+!.env.example
+*.local
+
 # Overnight loop artifacts
+*.log
 overnight.log
 DONE.flag
+*.tmp
+*.temp
 
 # IDE / OS
 .DS_Store

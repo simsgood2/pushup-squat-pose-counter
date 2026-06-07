@@ -1,83 +1,122 @@
-# 모캡 디펜스 (Mocap Defense)
+# Push-up / Squat Pose Counter
 
-웹캠으로 인식한 **내 운동 동작**이 3D 캐릭터에 그대로 반영되고, 운동으로 모은 **골드로 타워를 세워 적 웨이브를 막는** 웹 게임입니다.
+OpenCV와 MediaPipe를 사용해 웹캠 화면에서 푸시업과 스쿼트 횟수를 세는 Python 운동 카운터입니다.
 
-> 푸시업으로 골드를 벌고, 그 골드로 타워 디펜스를 한다 — 운동과 디펜스가 한 루프로 돌아갑니다.
-
-브라우저만 있으면 됩니다. 설치·서버 불필요, 포즈 추론부터 렌더링까지 전부 한 탭 안에서 돕니다.
-
-## 게임 흐름
-
-```
-[운동] 60초간 운동 → 동작 인식 → 골드 정산
-   ↓
-[건설] 모은 골드로 ⊓자 경로 양옆에 타워 배치
-   ↓
-[방어] 적 웨이브 방어 → 클리어 시 다음 라운드(운동)로, 실패 시 게임 오버
-```
+사용자는 실행 시 운동 모드를 선택하고 목표 횟수를 입력할 수 있습니다. 프로그램은 관절 각도를 기준으로 반복 동작을 판별하며, 종료 시 운동 기록을 CSV 파일로 저장합니다.
 
 ## 주요 기능
 
-- **모션 캡처**: MediaPipe Pose Landmarker로 33개 관절을 추적해 GLB 캐릭터를 실시간 리타게팅 (거울 모드)
-- **운동 분류 5종**: 푸시업 · 스쿼트 · 점프 · 런지 · 팔벌려뛰기 + 콤보 / 깊이 / 다양성 보너스
-- **타워 디펜스**: 타워 3종(기본·광역·슬로우), 적 4종(기본·고속·기갑·보스), 웨이브 1~5 + 보스
-- **네온 비주얼**: 절차적 지오메트리 + emissive 재질, 투사체 trail/glow, 피격·사망·골드 이펙트, 블룸 후처리
-- **연출**: 페이즈별 카메라 프리셋 + 트윈, 전환 배너, 캐릭터 근처 운동/콤보 플로팅 텍스트
+- 기본 웹캠을 열어 실시간 자세를 분석합니다.
+- MediaPipe Pose Landmarker로 어깨, 팔꿈치, 손목, 엉덩이, 무릎, 발목 위치를 추적합니다.
+- 푸시업, 스쿼트, 푸시업 + 스쿼트 모드를 지원합니다.
+- 운동별 목표 횟수를 설정할 수 있습니다.
+- 팔꿈치 각도로 푸시업을, 무릎 각도로 스쿼트를 카운트합니다.
+- 화면에 경과 시간, 현재 횟수, 목표 달성 여부를 표시합니다.
+- 운동 종료 후 세션 기록과 전체 요약 기록을 CSV로 저장합니다.
 
-## 기술 스택
+## 실행 방법
 
-| 영역 | 선택 |
-|---|---|
-| 언어 / 번들러 | TypeScript + Vite |
-| 3D 렌더 | Three.js (+ EffectComposer / UnrealBloom) |
-| 포즈 추론 | MediaPipe Tasks for Web (Pose Landmarker, 메인 스레드) |
-| 캐릭터 | GLB + 커스텀 본 리타게팅 |
-| 상태 관리 | Zustand (vanilla) |
-| UI | HTML 오버레이 |
+Windows PowerShell 기준입니다.
 
-## 빠른 시작
-
-```bash
-npm install
-npm run dev
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python main.py
 ```
 
-브라우저에서 열린 주소로 접속 후 **웹캠 권한을 허용**하고 "게임 시작"을 누르면 됩니다.
-운동 인식이 잘 되려면 몸 전체가 화면에 들어오도록 카메라를 약 2m 거리, 30~45도 사선에 두는 것이 안정적입니다.
+가상환경 활성화가 막히면 현재 PowerShell 창에서만 실행 정책을 풀고 다시 활성화합니다.
 
-빌드 / 미리보기:
-
-```bash
-npm run build     # tsc 타입체크 + vite 프로덕션 빌드
-npm run preview   # 빌드 결과 로컬 미리보기
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\venv\Scripts\Activate.ps1
 ```
+
+## 사용 방법
+
+프로그램을 실행하면 운동 모드를 선택합니다.
+
+```text
+1. Push-up
+2. Squat
+3. Push-up + Squat
+```
+
+선택한 운동의 목표 횟수를 입력합니다. 목표 없이 계속 카운트하려면 `0`을 입력하거나 빈칸으로 넘기면 됩니다.
+
+카메라 창이 열리면 운동을 시작합니다.
+
+- `f`: 전체 화면과 창 모드 전환
+- `q`: 종료
+- `ESC`: 종료
+
+종료하면 `records/` 폴더에 운동 기록이 저장됩니다.
+
+## 테스트 영상
+
+직접 촬영한 테스트 영상입니다. Markdown 뷰어에서 영상 미리보기가 보이지 않으면 아래 링크를 눌러 확인할 수 있습니다.
+
+### 스쿼트 10개
+
+<video src="media/squat-10-reps.mp4" controls width="720"></video>
+
+[스쿼트 테스트 영상 열기](media/squat-10-reps.mp4)
+
+### 푸시업 10개
+
+<video src="media/pushup-10-reps.mp4" controls width="720"></video>
+
+[푸시업 테스트 영상 열기](media/pushup-10-reps.mp4)
+
+## 저장되는 기록
+
+운동을 종료하면 두 종류의 CSV가 저장됩니다.
+
+- `records/session_YYYYMMDD_HHMMSS.csv`: 해당 운동 1회의 상세 기록
+- `records/summary.csv`: 전체 운동 세션 누적 요약
+
+기록에는 시작 시간, 종료 시간, 운동 시간, 목표 횟수, 완료 여부, 전체 횟수, 분당 반복 횟수가 포함됩니다.
 
 ## 프로젝트 구조
 
 ```text
 .
-├── index.html              # 엔트리 HTML (전역 스타일 포함)
-├── src/                    # 게임 소스
-│   ├── main.ts             # 런타임 엔트리 — 씬/모캡/HUD/디펜스 연결
-│   ├── scene.ts            # 렌더러·카메라·조명·환경맵·블룸 후처리
-│   ├── mocap/              # MediaPipe 포즈 스트림
-│   ├── character/          # GLB 로드 + 본 리타게팅
-│   ├── exercise/           # 운동 분류기 + 골드/콤보 보상
-│   ├── defense/            # 그리드·경로·타워·적·웨이브·이펙트
-│   ├── game/               # 페이즈 상태 머신 + 카메라 프리셋/트윈
-│   └── ui/                 # HUD·타워 패널·피드백
-├── public/                 # 정적 자산 (MediaPipe wasm/모델)
-├── docs/                   # 설계 문서 (game-redesign-plan.md)
-└── python/                 # 원본 Python 포즈 카운터 (아래 참고)
+|-- main.py
+|-- pose_engine.py
+|-- counter.py
+|-- utils.py
+|-- session_logger.py
+|-- pose_landmarker_lite.task
+|-- requirements.txt
+|-- media/
+|   |-- pushup-10-reps.mp4
+|   `-- squat-10-reps.mp4
+`-- README.md
 ```
 
-## `python/` 에 대하여
+## 파일 설명
 
-이 레포는 원래 **친구가 만든 Python 포즈 카운터**(OpenCV + MediaPipe로 푸시업/스쿼트를 세는 CLI 앱)에서 출발했습니다. 그 프로젝트의 운동 분류 규칙·각도 임계값을 출발점으로 삼아, 지금의 웹 게임으로 발전시켰습니다.
+- `main.py`: 웹캠 실행, 모드 선택, 화면 표시, 키 입력 처리, 세션 저장을 담당합니다.
+- `pose_engine.py`: MediaPipe Pose Landmarker 모델을 불러오고 신체 랜드마크를 감지합니다.
+- `counter.py`: 푸시업과 스쿼트의 반복 횟수 계산 및 자세 피드백 로직을 담고 있습니다.
+- `utils.py`: 관절 각도 계산, 랜드마크 평균값 계산, 누락된 포인트 확인 같은 공통 함수를 제공합니다.
+- `session_logger.py`: 운동 결과를 세션 CSV와 누적 요약 CSV로 저장합니다.
+- `pose_landmarker_lite.task`: MediaPipe 자세 인식 모델 파일입니다.
+- `requirements.txt`: 실행에 필요한 Python 패키지 목록입니다.
+- `media/`: README에서 사용하는 테스트 영상 파일입니다.
+- `records/`: 운동 기록이 저장되는 폴더입니다. 실행 중 자동으로 생성되며 Git에는 포함하지 않습니다.
 
-원본 코드는 웹 게임에서 직접 쓰이지는 않지만(런타임 의존 없음), 출처이자 기록으로 [`python/`](python/) 에 그대로 보존되어 있습니다. 실행법은 [python/README.md](python/README.md)를 참고하세요.
+## 동작 원리
 
-## 라이선스 / 검증
+- 자세 인식: MediaPipe가 웹캠 프레임에서 주요 관절 위치를 감지합니다.
+- 각도 계산: 푸시업은 팔꿈치 각도, 스쿼트는 무릎 각도를 중심으로 판단합니다.
+- 상태 관리: `ready`, `down`, `up` 상태를 거치며 완전한 동작 1회를 카운트합니다.
+- 피드백: 신체가 화면에 충분히 보이는지, 옆모습이 적절한지, 내려가는 깊이가 충분한지 확인합니다.
+- 기록 저장: 운동이 끝나면 세션별 기록과 전체 요약 기록을 CSV로 남깁니다.
 
-- 검증은 사람이 직접 브라우저로 확인하는 것을 기본으로 합니다(자동 테스트는 명시 요청 시에만).
-- 모바일 성능·카메라 권한은 배포 전 별도 확인이 필요합니다.
+## 촬영 및 인식 팁
+
+- 전신이 화면 안에 들어오도록 카메라를 배치합니다.
+- 스쿼트는 엉덩이, 무릎, 발목이 잘 보여야 안정적으로 카운트됩니다.
+- 푸시업은 어깨, 팔꿈치, 손목, 엉덩이가 보이는 옆모습 구도가 좋습니다.
+- 카운트가 너무 엄격하거나 느슨하면 `counter.py`의 각도 기준값을 조정합니다.
