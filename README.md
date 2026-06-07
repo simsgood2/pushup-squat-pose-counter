@@ -25,13 +25,6 @@ pip install -r requirements.txt
 python main.py
 ```
 
-가상환경 활성화가 막히면 현재 PowerShell 창에서만 실행 정책을 풀고 다시 활성화합니다.
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\venv\Scripts\Activate.ps1
-```
-
 ## 사용 방법
 
 프로그램을 실행하면 운동 모드를 선택합니다.
@@ -54,19 +47,15 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 ## 테스트 영상
 
-직접 촬영한 테스트 영상입니다. Markdown 뷰어에서 영상 미리보기가 보이지 않으면 아래 링크를 눌러 확인할 수 있습니다.
+직접 촬영한 테스트 영상입니다.
 
 ### 스쿼트 10개
 
-<video src="media/squat-10-reps.mp4" controls width="720"></video>
-
-[스쿼트 테스트 영상 열기](media/squat-10-reps.mp4)
+![스쿼트 테스트 영상 열기](media/squat.gif)
 
 ### 푸시업 10개
 
-<video src="media/pushup-10-reps.mp4" controls width="720"></video>
-
-[푸시업 테스트 영상 열기](media/pushup-10-reps.mp4)
+![푸시업 테스트 영상 열기](media/pushup.gif)
 
 ## 저장되는 기록
 
